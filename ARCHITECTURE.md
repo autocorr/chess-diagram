@@ -499,16 +499,28 @@ as the CLI writes them.
   functions. The board state is a canonical FEN string and the options are a dict of
   `RenderOptions` fields. `render` returns the canonical FEN, an SVG annotated with
   `data-square`, the board origin and size for pointer mapping, and each cell's token.
-  The edit functions (`set_cell`, `move`, `rotate`, `resize`) take a FEN and return a
-  new one, so every edit is checked by the real parser. `rotate` steps to the next angle
-  the fonts support for that piece. `export` returns SVG, PDF bytes or a TeX snippet.
+  The edit functions (`set_cell`, `move`, `rotate`, `recolor`, `resize`) take a FEN and
+  return a new one, so every edit is checked by the real parser. `rotate` steps to the
+  next angle the fonts support for that piece, and `recolor` to the next colour (white,
+  black, neutral) they support for that figure. `export` returns SVG, PDF bytes or a TeX
+  snippet.
   `info` and `figure_svg` feed the palette. Errors come back as `{error, code}`.
 - **UI** (`main.ts`, no framework): it only handles input and display.
-  - The colour, variant and rotation controls disable whatever the fonts don't contain.
+  - The Figure box lists the piece and special icons first, then the colour, variant
+    and rotation controls, which disable whatever the fonts don't contain.
   - Tools: place (clicking the same figure again removes it), erase, hole, wall and
     arrow (drag from one square to another; doing it again removes the arrow).
   - Drag to move. Right-click or <kbd>Del</kbd> clears; <kbd>R</kbd> and
     <kbd>Shift</kbd>+<kbd>R</kbd> rotate the piece under the pointer.
+  - Touch: tap places and dragging moves (pointer events throughout). Touch has no hover,
+    keys or right-click, so a long-press on a figure opens a menu with rotate, colour
+    (white → black → neutral) and clear buttons. Android reports a long-press as
+    `contextmenu`, so right-click only clears for a mouse. A tap on the board while the
+    menu is open only closes it.
+  - Layout: side by side on wide or landscape screens (the page fills the screen, the
+    board is sized to fit with a container query, and only the controls scroll); stacked
+    on portrait screens, where the board sticks to the top and the controls scroll under
+    it. Either way a figure can be picked and placed without scrolling the board away.
   - Help: a modal dialog from the header link.
   - Board size, border, wall style, caption, piece count and square size.
   - FEN field: validated as you type and normalised when you leave it.
@@ -557,8 +569,11 @@ pre-rendered SVGs) would be the lighter option.
   without page errors, FEN typing validates and normalises, placing, toggling, clearing,
   rotating (with unsupported angles skipped), dragging, holes, walls, resizing, arrows and
   options all work, the URL hash restores state, and the SVG/PDF/TeX downloads are
-  byte-identical to `uv run gcdiagram` with the same arguments. The suite passed 10
-  repeated runs (80 tests) without a failure.
+  byte-identical to `uv run gcdiagram` with the same arguments. At phone, tablet and
+  desktop sizes in both orientations the page never scrolls sideways and the board stays
+  in view while the palette and options are on screen. With touch emulation, taps place,
+  drags move and the long-press menu rotates, recolours and clears. The suite passed 5
+  repeated runs (90 tests) without a failure.
 - **LaTeX** (`tests/test_latex.py`): `texlua` runs the shared vectors against the Lua
   parser; the Lua `\gcbox` body must equal Python's for every case; route A must compile
   with LuaLaTeX and XeLaTeX with each GC font embedded once; route B must compile and

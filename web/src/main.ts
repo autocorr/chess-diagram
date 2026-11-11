@@ -9,6 +9,7 @@ const FILES = "abcdefghijklmnopqrstuvwxyz";
 const KINDS = ["K", "Q", "R", "B", "N", "P"];
 const ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SVG_NS = "http://www.w3.org/2000/svg";
+const LONG_PRESS_MS = 450;
 
 interface DiagramOptions extends Options {
   border: string;
@@ -43,6 +44,9 @@ let angle = 0;
 let selection: Selection = { type: "piece", kind: "Q" };
 let hover: string | null = null;
 let pressed: string | null = null;
+let pointerType = "mouse"; // of the last pointerdown on the board
+let longPress: ReturnType<typeof setTimeout> | undefined;
+let menuSquare: string | null = null; // the square the touch menu is open for
 let queue: Promise<unknown> = Promise.resolve();
 const icons = new Map<string, string>();
 
@@ -132,12 +136,14 @@ function draw(): void {
   mark.setAttribute("visibility", "hidden");
   svg.append(mark);
   showHover();
+  if (menuSquare) openMenu(menuSquare); // re-check and re-place it against the new board
 }
 
 function showHover(): void {
   const mark = boardEl.querySelector<SVGRectElement>("#hover");
   if (!mark || !view) return;
-  const pos = hover ? position(hover) : null;
+  const square = hover ?? menuSquare;
+  const pos = square ? position(square) : null;
   if (!pos) {
     mark.setAttribute("visibility", "hidden");
     return;
@@ -194,6 +200,60 @@ function squareAt(event: MouseEvent): string | null {
 function cellAt(square: string): string {
   const pos = position(square);
   return pos && view ? view.cells[pos[0]]![pos[1]]! : "";
+}
+
+/** The client-coordinate rectangle of a square, for placing the touch menu. */
+function squareRect(square: string): DOMRect | null {
+  const pos = position(square);
+  const ctm = boardEl.querySelector("svg")?.getScreenCTM();
+  if (!pos || !view || !ctm) return null;
+  const a = new DOMPoint(view.boardX + pos[1] * U, view.boardY + pos[0] * U).matrixTransform(ctm);
+  const b = new DOMPoint(view.boardX + (pos[1] + 1) * U, view.boardY + (pos[0] + 1) * U).matrixTransform(ctm);
+  return new DOMRect(a.x, a.y, b.x - a.x, b.y - a.y);
+}
+
+// --- Touch menu -------------------------------------------------------------------------
+// Touch screens have no hover, keyboard or right-click, so a long-press on a figure opens
+// a small menu that rotates or removes it.
+
+const menu = $<HTMLDivElement>("square-menu");
+
+function openMenu(square: string): void {
+  const cell = cellAt(square);
+  const rect = squareRect(square);
+  if (cell === "" || !rect) {
+    closeMenu();
+    return;
+  }
+  menuSquare = square;
+  // Holes, walls and special figures have no rotations; holes, walls and single-version
+  // specials (box, cross, half-circle) have no colours.
+  const figure = cell !== "." && cell !== "*";
+  const special = /@([a-z-]+)/.exec(cell)?.[1];
+  const versions = special ? new Set(Object.values(info.specials[special] ?? {})).size : 3;
+  for (const b of menu.querySelectorAll<HTMLButtonElement>("[data-rotate]")) b.hidden = !figure || !!special;
+  $("menu-recolor").hidden = !figure || versions < 2;
+  menu.hidden = false;
+  // Above the square if there is room (a finger covers the square itself), else below.
+  const m = menu.getBoundingClientRect();
+  const gap = 8;
+  const top = rect.top - m.height - gap >= gap ? rect.top - m.height - gap : rect.bottom + gap;
+  const left = Math.min(Math.max(rect.left + rect.width / 2 - m.width / 2, gap), innerWidth - m.width - gap);
+  menu.style.top = `${top}px`;
+  menu.style.left = `${left}px`;
+  showHover();
+}
+
+function closeMenu(): void {
+  if (menuSquare === null) return;
+  menuSquare = null;
+  menu.hidden = true;
+  showHover();
+}
+
+function cancelLongPress(): void {
+  clearTimeout(longPress);
+  longPress = undefined;
 }
 
 // --- Editing ----------------------------------------------------------------------------
@@ -352,13 +412,26 @@ function bindOption(id: string, read: (el: HTMLInputElement) => void): void {
 function wire(): void {
   boardEl.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
+    pointerType = e.pointerType;
     pressed = squareAt(e);
-    if (pressed) boardEl.setPointerCapture(e.pointerId);
+    if (!pressed) return;
+    boardEl.setPointerCapture(e.pointerId);
+    if (e.pointerType !== "mouse") {
+      const square = pressed;
+      longPress = setTimeout(() => {
+        longPress = undefined;
+        if (pressed !== square) return;
+        pressed = null; // the press is used up: no place or move when the finger lifts
+        navigator.vibrate?.(10);
+        openMenu(square);
+      }, LONG_PRESS_MS);
+    }
   });
   boardEl.addEventListener("pointermove", (e) => {
     const sq = squareAt(e);
     if (sq !== hover) {
       hover = sq;
+      if (sq !== pressed) cancelLongPress(); // moved off the square: it's a drag
       showHover();
     }
   });
@@ -367,6 +440,7 @@ function wire(): void {
     showHover();
   });
   boardEl.addEventListener("pointerup", (e) => {
+    cancelLongPress();
     if (e.button !== 0 || !pressed) return;
     const released = squareAt(e);
     const from = pressed;
@@ -375,11 +449,47 @@ function wire(): void {
     if (released === from) click(from);
     else drag(from, released);
   });
+  boardEl.addEventListener("pointercancel", () => {
+    cancelLongPress();
+    pressed = null;
+  });
   boardEl.addEventListener("contextmenu", (e) => {
     e.preventDefault();
+    // Android reports a long-press as a context menu; touch has its own menu instead.
+    if (pointerType !== "mouse") return;
     const sq = squareAt(e);
     if (sq) void edit(sq, "");
   });
+
+  for (const b of menu.querySelectorAll<HTMLButtonElement>("[data-rotate]")) {
+    b.addEventListener("click", () => {
+      if (menuSquare) rotate(menuSquare, Number(b.dataset.rotate));
+    });
+  }
+  $("menu-recolor").addEventListener("click", () => {
+    const square = menuSquare;
+    if (square) void enqueue(async () => apply(await py.recolor(state.fen, square)));
+  });
+  $("menu-clear").addEventListener("click", () => {
+    if (menuSquare) void edit(menuSquare, "");
+    closeMenu();
+  });
+  // Any press outside the menu closes it. On the board that is all it does, so a tap to
+  // dismiss the menu doesn't also place a figure.
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (!menuSquare || menu.contains(e.target as Node)) return;
+      closeMenu();
+      if (boardEl.contains(e.target as Node)) e.stopPropagation();
+    },
+    true,
+  );
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeMenu();
+  });
+  addEventListener("resize", closeMenu);
+  addEventListener("scroll", closeMenu, true);
   // Help: a modal dialog. The link doesn't navigate, because the URL hash holds the diagram.
   const help = $("help") as HTMLDialogElement;
   $("help-link").addEventListener("click", (e) => {

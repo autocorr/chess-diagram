@@ -28,6 +28,8 @@
         <li>Drag a figure to move it. Right-click a square to empty it.</li>
         <li>With the pointer over a square: <kbd>R</kbd> rotates the figure 45° clockwise,
           <kbd>Shift</kbd>+<kbd>R</kbd> anticlockwise, <kbd>Del</kbd> empties the square.</li>
+        <li>On a touch screen, long-press a figure for buttons that rotate it (↺ ↻), change its
+          colour between white, black and neutral, or remove it (✕).</li>
       </ul>
 
       <h3>Extended FEN</h3>
@@ -53,10 +55,17 @@
     <main>
       <section id="board-pane">
         <div id="board" data-testid="board"></div>
-        <p class="hint">
+        <p class="hint fine-pointer">
           Click: place · Right-click: clear · Drag: move · <kbd>R</kbd>/<kbd>Shift</kbd>+<kbd>R</kbd>:
           rotate · <kbd>Del</kbd>: clear
         </p>
+        <p class="hint coarse-pointer">Tap: place · Drag: move · Long-press: rotate, recolour or clear</p>
+        <div id="square-menu" data-testid="square-menu" role="toolbar" aria-label="Square actions" hidden>
+          <button type="button" data-rotate="-45" aria-label="Rotate anticlockwise">↺</button>
+          <button type="button" data-rotate="45" aria-label="Rotate clockwise">↻</button>
+          <button type="button" id="menu-recolor" aria-label="Change colour" title="White → black → neutral"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button>
+          <button type="button" id="menu-clear" aria-label="Clear square">✕</button>
+        </div>
       </section>
 
       <aside>
@@ -82,6 +91,9 @@
 
         <fieldset id="palette">
           <legend>Figure</legend>
+          <div id="pieces" class="glyphs" aria-label="Pieces"></div>
+          <div id="specials" class="glyphs" aria-label="Special figures"></div>
+          <p id="selection" data-testid="selection" class="muted"></p>
           <div class="segmented">
             <label><input type="radio" name="color" value="white" checked />White</label>
             <label><input type="radio" name="color" value="black" />Black</label>
@@ -93,9 +105,6 @@
             <label><input type="radio" name="variant" value="mirror" />Mirrored</label>
           </div>
           <div id="angles" class="segmented" aria-label="Rotation"></div>
-          <div id="pieces" class="glyphs" aria-label="Pieces"></div>
-          <div id="specials" class="glyphs" aria-label="Special figures"></div>
-          <p id="selection" data-testid="selection" class="muted"></p>
         </fieldset>
 
         <fieldset>

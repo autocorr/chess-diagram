@@ -79,6 +79,7 @@ export class Python {
   move = (fen: string, from: string, to: string) => this.call<{ fen: string } | Failure>("move", fen, from, to);
   rotate = (fen: string, square: string, step: number) =>
     this.call<{ fen: string } | Failure>("rotate", fen, square, step);
+  recolor = (fen: string, square: string) => this.call<{ fen: string } | Failure>("recolor", fen, square);
   resize = (fen: string, width: number, height: number) =>
     this.call<{ fen: string } | Failure>("resize", fen, width, height);
   export = (fen: string, options: Options, fmt: string) =>

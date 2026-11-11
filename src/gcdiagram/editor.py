@@ -18,6 +18,7 @@ from .board import (
     Board,
     Cell,
     Color,
+    Figure,
     Hole,
     Piece,
     Shade,
@@ -167,6 +168,31 @@ def rotate(fen: str, square: str, step: int = 45) -> dict[str, Any]:
             if cat.supports(candidate):
                 board[square] = Square(candidate)
                 break
+    except (FenError, ValueError) as e:
+        return _error(e)
+    return {"fen": serialize(board)}
+
+
+def recolor(fen: str, square: str) -> dict[str, Any]:
+    """Change the figure on a square to the next colour (white, black, neutral) the fonts
+    have for it, keeping its kind, angle and variant."""
+    try:
+        board = parse(fen)
+        cell = board[square]
+        if isinstance(cell, Square) and cell.figure is not None:
+            fig = cell.figure
+            cat = load_catalog()
+            i = _COLORS.index(fig.color) if fig.color in _COLORS else 0
+            for k in range(1, len(_COLORS)):
+                color = _COLORS[(i + k) % len(_COLORS)]
+                candidate: Figure = (
+                    Piece(fig.kind, color, fig.angle, fig.variant)
+                    if isinstance(fig, Piece)
+                    else Special(fig.name, color)
+                )
+                if cat.supports(candidate):
+                    board[square] = Square(candidate)
+                    break
     except (FenError, ValueError) as e:
         return _error(e)
     return {"fen": serialize(board)}

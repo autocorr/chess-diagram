@@ -205,3 +205,107 @@ test("exports are byte-identical to the gcdiagram CLI", async ({ page }) => {
     expect(browser.equals(cli), `${fmt} export differs from the CLI`).toBe(true);
   }
 });
+
+// --- Small screens ------------------------------------------------------------------------
+
+const SCREENS: [string, number, number][] = [
+  ["small phone, portrait", 375, 667],
+  ["small phone, landscape", 667, 375],
+  ["phone, portrait", 390, 844],
+  ["phone, landscape", 844, 390],
+  ["tablet, portrait", 768, 1024],
+  ["tablet, landscape", 1024, 768],
+  ["desktop", 1400, 900],
+];
+
+for (const [name, width, height] of SCREENS) {
+  test.describe(name, () => {
+    test.use({ viewport: { width, height }, hasTouch: name !== "desktop" });
+
+    test("the board stays in view while the controls are used", async ({ page }) => {
+      await open(page);
+      const layout = (id: string) =>
+        page.evaluate((id) => {
+          const el = document.getElementById(id)!;
+          el.scrollIntoView({ block: "end" });
+          const r = el.getBoundingClientRect();
+          const board = document.getElementById("board")!.getBoundingClientRect();
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return {
+            pageScrollsSideways: document.documentElement.scrollWidth > innerWidth,
+            boardInView: board.top >= -1 && board.bottom <= innerHeight + 1 && board.left >= 0 && board.right <= innerWidth,
+            controlUncovered: hit !== null && el.contains(hit),
+          };
+        }, id);
+      const expected = { pageScrollsSideways: false, boardInView: true, controlUncovered: true };
+      expect(await layout("specials")).toEqual(expected);
+      expect(await layout("square-size")).toEqual(expected);
+    });
+  });
+}
+
+test.describe("touch", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  async function longPress(page: Page, square: string): Promise<void> {
+    const { x, y } = await centre(page, square);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+    await page.waitForTimeout(700);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  }
+
+  test("long-press opens a menu that rotates and clears", async ({ page }) => {
+    await open(page);
+    await setFen(page, "8/8/8/8/4Q3/8/8/7{@star}");
+    const menu = page.getByTestId("square-menu");
+    await longPress(page, "d4"); // empty: nothing to act on
+    await expect(menu).toBeHidden();
+    await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@star}");
+
+    await longPress(page, "e4");
+    await expect(menu).toBeVisible();
+    await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@star}"); // the press itself placed nothing
+    await page.getByRole("button", { name: "Rotate clockwise" }).tap();
+    await expect(fen(page)).toHaveValue("8/8/8/8/4{Q45}3/8/8/7{@star}");
+    await page.getByRole("button", { name: "Rotate anticlockwise" }).tap();
+    await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@star}");
+    const recolor = page.getByRole("button", { name: "Change colour" });
+    await recolor.tap();
+    await expect(fen(page)).toHaveValue("8/8/8/8/4q3/8/8/7{@star}");
+    await recolor.tap();
+    await expect(fen(page)).toHaveValue("8/8/8/8/4{=Q}3/8/8/7{@star}");
+    await recolor.tap();
+    await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@star}");
+    // A tap elsewhere on the board only closes the menu.
+    const a1 = await centre(page, "a1");
+    await page.touchscreen.tap(a1.x, a1.y);
+    await expect(menu).toBeHidden();
+    await idle(page);
+    await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@star}");
+
+    await longPress(page, "h1"); // special figures don't rotate, but a star has two colours
+    await expect(page.getByRole("button", { name: "Rotate clockwise" })).toBeHidden();
+    await recolor.tap();
+    await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@Star}");
+    await page.getByRole("button", { name: "Clear square" }).tap();
+    await expect(menu).toBeHidden();
+    await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/8");
+  });
+
+  test("tapping places and touch-dragging moves", async ({ page }) => {
+    await open(page);
+    await setFen(page, EMPTY8);
+    const e4 = await centre(page, "e4");
+    await page.touchscreen.tap(e4.x, e4.y);
+    await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/8");
+    const e5 = await centre(page, "e5");
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type: string, points: { x: number; y: number }[]) =>
+      cdp.send("Input.dispatchTouchEvent", { type: type as "touchStart", touchPoints: points });
+    await touch("touchStart", [e4]);
+    for (let i = 1; i <= 5; i++) await touch("touchMove", [{ x: e4.x, y: e4.y + ((e5.y - e4.y) * i) / 5 }]);
+    await touch("touchEnd", []);
+    await expect(fen(page)).toHaveValue("8/8/8/4Q3/8/8/8/8");
+  });
+});

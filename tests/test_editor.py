@@ -72,6 +72,25 @@ def test_rotate_skips_unsupported_angles() -> None:
     assert editor.rotate(fen, "a1")["fen"] == "{~Q}1"  # chameleon pieces only exist at 0
 
 
+def test_recolor_cycles_through_the_colours_the_fonts_have() -> None:
+    fen = editor.set_cell("2", "a1", "{N90}")["fen"]
+    fen = editor.recolor(fen, "a1")["fen"]
+    assert fen == "{n90}1"
+    fen = editor.recolor(fen, "a1")["fen"]
+    assert fen == "{=N90}1"
+    assert editor.recolor(fen, "a1")["fen"] == "{N90}1"
+    # No neutral pieces at 45 degrees, and no neutral chameleons: black goes back to white.
+    assert editor.recolor("{q45}1", "a1")["fen"] == "{Q45}1"
+    assert editor.recolor("{~q}1", "a1")["fen"] == "{~Q}1"
+    # Specials: the equihopper has all three colours, the star no neutral, the box none.
+    assert editor.recolor("{@equihopper}1", "a1")["fen"] == "{=@equihopper}1"
+    assert editor.recolor("{@star}1", "a1")["fen"] == "{@Star}1"
+    assert editor.recolor("{@box}1", "a1")["fen"] == "{@box}1"
+    # Empty squares, holes and walls are left alone.
+    assert editor.recolor("1.*", "a1")["fen"] == "1.*"
+    assert editor.recolor("1.*", "b1")["fen"] == "1.*"
+
+
 def test_edit_errors() -> None:
     assert editor.set_cell("8", "a1", "{Q30}")["code"] == "bad-angle"
     assert editor.set_cell("8", "a1", "KK")["code"] == "error"
