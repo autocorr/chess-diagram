@@ -82,7 +82,7 @@ def test_catalog_resolves_figures() -> None:
     assert cat.supports(Piece("N", "black", 180, "mirror"))
     assert not cat.supports(Piece("N", "black", 0, "mirror"))
     assert not cat.supports(Piece("Q", "neutral", 45))
-    assert cat.specials["hourglass"] == {"white", "black", "neutral"}
+    assert cat.specials["equihopper"] == {"white", "black", "neutral"}
     assert cat.specials["box"] == {"none"}
     with pytest.raises(KeyError, match="no glyph"):
         cat.figure_glyph(Special("nope", "white"), "light")

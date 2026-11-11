@@ -34,7 +34,7 @@ ranks, top rank first) works unchanged. Fields after the board are ignored. In a
 | `{=Q}` `{=R180}` | neutral piece (0/90/180/270°) |
 | `{~B}` | chameleon (framed) piece |
 | `{!N90}` | mirrored knight (90/180/270°) |
-| `{@Star}` `{@star}` `{=@hourglass}` | special figure: capital = white, lower = black, `=` = neutral |
+| `{@Star}` `{@star}` `{=@equihopper}` | special figure: capital = white, lower = black, `=` = neutral |
 | `.` | hole: a missing square |
 | `*` | wall: a blocked square |
 | `12` | multi-digit empty runs, for boards up to 26×26 |

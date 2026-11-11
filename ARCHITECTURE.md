@@ -24,8 +24,8 @@ There are two scope decisions:
 | File | Contents |
 |---|---|
 | `data/GC2004D_.TTF` | Empty squares, single border, pieces at 0/90/180/270°, chameleon (framed) Q R B N P, neutral pieces at 0°, symbols (↔ → ✓), special markers (box, flower, ring, diamond, cross, half-circle) |
-| `data/GC2004X_.TTF` | Pieces at 45/135/225/315°, neutral pieces at 90/180/270°, special markers (hourglass vertical and horizontal, circle, star) |
-| `data/GC2004Y_.TTF` | Double border and corners, 2- and 3-sided edge squares, arrows, mirrored knights at 90/180/270°, chameleon king, jester and moustache figures, rank labels 1–26 and file labels a–z in single and double styles |
+| `data/GC2004X_.TTF` | Pieces at 45/135/225/315°, neutral pieces at 90/180/270°, special markers (equihopper, circle, star) |
+| `data/GC2004Y_.TTF` | Double border and corners, 2- and 3-sided edge squares, arrows, mirrored knights at 90/180/270°, chameleon king, jester figures, rank labels 1–26 and file labels a–z in single and double styles |
 | `data/GC2004Q.pdf` | Quick reference showing the code and image for every glyph |
 
 Facts about the fonts, verified in Phase 1:
@@ -207,8 +207,8 @@ What the fonts cover (all with light and dark versions):
 
 | Special | Colours |
 |---|---|
-| `flower`, `diamond`, `ring`, `circle`, `star`, `jester`, `moustache` | white, black |
-| `hourglass`, `hourglass-h` (horizontal) | white, black, neutral |
+| `flower`, `diamond`, `ring`, `circle`, `star`, `jester` | white, black |
+| `equihopper` | white, black, neutral |
 | `half-circle` | neutral |
 | `box`, `cross` | none |
 
@@ -580,9 +580,10 @@ pre-rendered SVGs) would be the lighter option.
 ## 13. Open questions
 
 - Should a wall be a solid black square, or the framed `special:box:none` glyph?
-- The special names (§4.2) are descriptive because the reference PDF doesn't give their
-  fairy meanings, e.g. `jester` and `moustache` for GC2004Y 0x43–0x4A. Rename them if
-  there are established names.
+- The special names (§4.2) are mostly descriptive because the reference PDF doesn't give
+  their fairy meanings. Rename them if there are established names. (`equihopper` and
+  `jester` are established; the fonts' rotated copies of them, GC2004X 0xEB–0xEE,
+  0xF3–0xF4 and GC2004Y 0x47–0x4A, are deliberately left out of the catalog.)
 - Coordinates (rank and file labels) are out of scope for v1, but the catalog includes the
   label glyphs so they can be added later.
 - Font redistribution rights (see §1).

@@ -9,7 +9,7 @@
     }
   },
   "fairy": {
-    "fen": "{Q90}{q135}{=R}{~b}{!N90}{@Star}{@ring}{=@hourglass}/{K45}{k225}{=N180}{~P}{!n270}{@box}{@cross}{@half-circle}/8/8",
+    "fen": "{Q90}{q135}{=R}{~b}{!N90}{@Star}{@ring}{=@equihopper}/{K45}{k225}{=N180}{~P}{!n270}{@box}{@cross}{@half-circle}/8/8",
     "options": {
       "border": "double",
       "arrows": [

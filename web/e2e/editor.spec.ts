@@ -112,7 +112,7 @@ test("only offers figures the fonts contain", async ({ page }) => {
   await expect(page.locator('input[name="angle"][value="45"]')).toBeDisabled();
   await expect(page.locator('input[name="angle"][value="90"]')).toBeEnabled();
   await expect(page.locator('[data-testid="special-star"]')).toBeDisabled(); // no neutral star
-  await expect(page.locator('[data-testid="special-hourglass"]')).toBeEnabled();
+  await expect(page.locator('[data-testid="special-equihopper"]')).toBeEnabled();
   await choose(page, "color", "white");
   await page.locator('[data-testid="special-star"]').click();
   await expect(page.getByTestId("selection")).toHaveText("Selected: {@Star}");

@@ -32,7 +32,7 @@ def test_canonical(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_list_specials(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["--list-specials"]) == 0
-    assert "hourglass    black, neutral, white" in capsys.readouterr().out
+    assert "equihopper   black, neutral, white" in capsys.readouterr().out
 
 
 def test_bad_fen_exits_2(capsys: pytest.CaptureFixture[str]) -> None:

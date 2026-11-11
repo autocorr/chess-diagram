@@ -157,10 +157,8 @@ NEUTRAL = {
 SPECIAL_COLORED = {
     "flower": ("D", _r(0xE4, 0xE7)),
     "diamond": ("D", _r(0xF8, 0xFB)),
-    "hourglass": ("X", _r(0xEB, 0xEE)),
-    "hourglass-h": ("X", _r(0xEF, 0xF2)),
+    "equihopper": ("X", _r(0xEF, 0xF2)),
     "jester": ("Y", _r(0x43, 0x46)),
-    "moustache": ("Y", _r(0x47, 0x4A)),
 }
 
 # Pairs where white and black variants are separate glyph pairs rather than a run of four.
@@ -174,8 +172,7 @@ SPECIAL_PAIRED = {
     "box": ("D", "none", [0xE2, 0xE3]),
     "cross": ("D", "none", [0xFC, 0xFD]),
     "half-circle": ("D", "neutral", [0xFE, 0xFF]),
-    "hourglass": ("X", "neutral", [0xF3, 0xF4]),
-    "hourglass-h": ("X", "neutral", [0xF5, 0xF6]),
+    "equihopper": ("X", "neutral", [0xF5, 0xF6]),
 }
 
 # --- Board furniture ----------------------------------------------------------------------
