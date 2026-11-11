@@ -1,0 +1,525 @@
+// Editor UI. All chess and diagram logic runs in Python (gcdiagram.editor via Pyodide);
+// this file only handles the DOM, pointer and keyboard input, and the URL hash.
+
+import { type Info, type Options, Python, type Rendered, failed } from "./python";
+
+const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+const U = 2000; // font units per square in the rendered SVG
+const FILES = "abcdefghijklmnopqrstuvwxyz";
+const KINDS = ["K", "Q", "R", "B", "N", "P"];
+const ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+interface DiagramOptions extends Options {
+  border: string;
+  wall: string;
+  caption: string[];
+  piece_count: boolean;
+  arrows: string[];
+  square_size: number;
+}
+
+interface State {
+  fen: string;
+  options: DiagramOptions;
+}
+
+type Selection = { type: "piece"; kind: string } | { type: "special"; name: string };
+
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const boardEl = $<HTMLDivElement>("board");
+const fenInput = $<HTMLInputElement>("fen");
+const fenError = $<HTMLParagraphElement>("fen-error");
+const statusEl = $<HTMLSpanElement>("status");
+
+const py = new Python();
+let info: Info = { pieces: [], specials: {} };
+let state = loadHash();
+let view: Rendered | null = null;
+let tool = "place";
+let color = "white";
+let variant = "plain";
+let angle = 0;
+let selection: Selection = { type: "piece", kind: "Q" };
+let hover: string | null = null;
+let pressed: string | null = null;
+let queue: Promise<unknown> = Promise.resolve();
+const icons = new Map<string, string>();
+
+let pendingActions = 0;
+
+/**
+ * Run actions one at a time, in order, so quick successive edits cannot race.
+ * body[data-busy] is set while any are pending (the end-to-end tests wait on it).
+ */
+function enqueue(action: () => Promise<void>): Promise<void> {
+  pendingActions += 1;
+  document.body.dataset.busy = "true";
+  const run = queue.then(action, action).finally(() => {
+    pendingActions -= 1;
+    if (pendingActions === 0) delete document.body.dataset.busy;
+  });
+  queue = run.catch((e: unknown) => setStatus(String(e), true));
+  return run;
+}
+
+function setStatus(text: string, error = false): void {
+  statusEl.textContent = text;
+  statusEl.classList.toggle("error", error);
+}
+
+// --- URL hash ---------------------------------------------------------------------------
+
+function loadHash(): State {
+  const p = new URLSearchParams(location.hash.slice(1));
+  return {
+    fen: p.get("fen") || START,
+    options: {
+      border: p.get("border") ?? "single",
+      wall: p.get("wall") ?? "solid",
+      caption: p.getAll("caption"),
+      piece_count: p.get("count") === "1",
+      arrows: p.getAll("arrow"),
+      square_size: Number(p.get("size") ?? 20) || 20,
+    },
+  };
+}
+
+function saveHash(): void {
+  const p = new URLSearchParams({ fen: state.fen });
+  const o = state.options;
+  if (o.border !== "single") p.set("border", o.border);
+  if (o.wall !== "solid") p.set("wall", o.wall);
+  for (const line of o.caption) p.append("caption", line);
+  if (o.piece_count) p.set("count", "1");
+  for (const arrow of o.arrows) p.append("arrow", arrow);
+  if (o.square_size !== 20) p.set("size", String(o.square_size));
+  history.replaceState(null, "", `#${p}`);
+}
+
+// --- Rendering --------------------------------------------------------------------------
+
+async function refresh(): Promise<void> {
+  const result = await py.render(state.fen, state.options);
+  if (failed(result)) {
+    showError(result.error);
+    return;
+  }
+  view = result;
+  state.fen = result.fen;
+  showError("");
+  draw();
+  syncControls();
+  saveHash();
+}
+
+function showError(message: string): void {
+  fenError.textContent = message;
+  fenInput.classList.toggle("invalid", message !== "");
+}
+
+function draw(): void {
+  if (!view) return;
+  boardEl.innerHTML = view.svg;
+  const svg = boardEl.querySelector("svg")!;
+  const mark = document.createElementNS(SVG_NS, "rect");
+  mark.id = "hover";
+  mark.setAttribute("width", String(U));
+  mark.setAttribute("height", String(U));
+  mark.setAttribute("fill", "var(--hover)");
+  mark.setAttribute("pointer-events", "none");
+  mark.setAttribute("visibility", "hidden");
+  svg.append(mark);
+  showHover();
+}
+
+function showHover(): void {
+  const mark = boardEl.querySelector<SVGRectElement>("#hover");
+  if (!mark || !view) return;
+  const pos = hover ? position(hover) : null;
+  if (!pos) {
+    mark.setAttribute("visibility", "hidden");
+    return;
+  }
+  mark.setAttribute("x", String(view.boardX + pos[1] * U));
+  mark.setAttribute("y", String(view.boardY + pos[0] * U));
+  mark.setAttribute("visibility", "visible");
+}
+
+function syncControls(): void {
+  if (!view) return;
+  // Never overwrite a field the user is typing in.
+  const set = (id: string, value: string) => {
+    const el = $<HTMLInputElement>(id);
+    if (document.activeElement !== el) el.value = value;
+  };
+  const o = state.options;
+  set("fen", view.fen);
+  set("files", String(view.files));
+  set("ranks", String(view.ranks));
+  set("border", o.border);
+  set("wall", o.wall);
+  set("caption", o.caption.join("\n"));
+  set("square-size", String(o.square_size));
+  $<HTMLInputElement>("count").checked = o.piece_count;
+  $("arrows").textContent = o.arrows.length
+    ? `Arrows: ${o.arrows.join(", ")}`
+    : "No arrows (drag with the Arrow tool)";
+}
+
+// --- Squares ----------------------------------------------------------------------------
+
+/** [row, col] of a square name on the current board, or null if it is off the board. */
+function position(square: string): [number, number] | null {
+  if (!view) return null;
+  const m = /^([a-z])(\d+)$/.exec(square);
+  if (!m) return null;
+  const col = FILES.indexOf(m[1]!);
+  const row = view.ranks - Number(m[2]);
+  return col < view.files && row >= 0 && row < view.ranks ? [row, col] : null;
+}
+
+function squareAt(event: MouseEvent): string | null {
+  const svg = boardEl.querySelector("svg");
+  const ctm = svg?.getScreenCTM();
+  if (!view || !ctm) return null;
+  const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+  const col = Math.floor((p.x - view.boardX) / U);
+  const row = Math.floor((p.y - view.boardY) / U);
+  if (col < 0 || col >= view.files || row < 0 || row >= view.ranks) return null;
+  return `${FILES[col]}${view.ranks - row}`;
+}
+
+function cellAt(square: string): string {
+  const pos = position(square);
+  return pos && view ? view.cells[pos[0]]![pos[1]]! : "";
+}
+
+// --- Editing ----------------------------------------------------------------------------
+
+async function apply(result: { fen: string } | { error: string; code: string }): Promise<void> {
+  if (failed(result)) {
+    setStatus(result.error, true);
+    return;
+  }
+  state.fen = result.fen;
+  await refresh();
+}
+
+function edit(square: string, token: string): Promise<void> {
+  return enqueue(async () => apply(await py.setCell(state.fen, square, token)));
+}
+
+function click(square: string): void {
+  const current = cellAt(square);
+  if (tool === "place") {
+    const token = selectedToken();
+    if (!token) {
+      setStatus("The GC fonts have no glyph for this selection", true);
+      return;
+    }
+    void edit(square, current === token ? "" : token);
+  } else if (tool === "erase") {
+    void edit(square, "");
+  } else if (tool === "hole") {
+    void edit(square, current === "." ? "" : ".");
+  } else if (tool === "wall") {
+    void edit(square, current === "*" ? "" : "*");
+  }
+}
+
+function drag(from: string, to: string): void {
+  if (tool === "arrow") {
+    const spec = `${from}-${to}`;
+    const arrows = state.options.arrows;
+    state.options.arrows = arrows.includes(spec) ? arrows.filter((a) => a !== spec) : [...arrows, spec];
+    void enqueue(refresh);
+  } else if (cellAt(from) !== "") {
+    void enqueue(async () => apply(await py.move(state.fen, from, to)));
+  }
+}
+
+function rotate(square: string, step: number): void {
+  void enqueue(async () => apply(await py.rotate(state.fen, square, step)));
+}
+
+/** Keep only arrows whose squares exist on a width x height board. */
+function arrowsWithin(width: number, height: number): string[] {
+  return state.options.arrows.filter((spec) =>
+    (spec.match(/[a-z]\d+/g) ?? []).every((sq) => FILES.indexOf(sq[0]!) < width && Number(sq.slice(1)) <= height),
+  );
+}
+
+// --- Palette ----------------------------------------------------------------------------
+
+function pieceToken(kind: string): string | null {
+  return (
+    info.pieces.find((p) => p.kind === kind && p.color === color && p.variant === variant && p.angle === angle)
+      ?.token ?? null
+  );
+}
+
+function specialToken(name: string): string | null {
+  const colors = info.specials[name] ?? [];
+  if (colors.every((c) => c === "none" || c === "neutral")) return `{@${name}}`;
+  if (color === "neutral") return colors.includes("neutral") ? `{=@${name}}` : null;
+  if (!colors.includes(color)) return null;
+  return color === "white" ? `{@${name[0]!.toUpperCase()}${name.slice(1)}}` : `{@${name}}`;
+}
+
+function selectedToken(): string | null {
+  return selection.type === "piece" ? pieceToken(selection.kind) : specialToken(selection.name);
+}
+
+async function icon(token: string): Promise<string> {
+  let svg = icons.get(token);
+  if (svg === undefined) {
+    svg = await py.figureSvg(token, "light");
+    icons.set(token, svg);
+  }
+  return svg;
+}
+
+function buildPalette(): void {
+  const angles = $("angles");
+  for (const a of ANGLES) {
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="radio" name="angle" value="${a}"${a === 0 ? " checked" : ""}/>${a}°`;
+    angles.append(label);
+  }
+  const pieces = $("pieces");
+  for (const kind of KINDS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.kind = kind;
+    b.dataset.testid = `piece-${kind}`;
+    b.title = kind;
+    b.addEventListener("click", () => {
+      selection = { type: "piece", kind };
+      tool = "place";
+      (document.querySelector('input[name="tool"][value="place"]') as HTMLInputElement).checked = true;
+      void updatePalette();
+    });
+    pieces.append(b);
+  }
+  const specials = $("specials");
+  for (const name of Object.keys(info.specials)) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.special = name;
+    b.dataset.testid = `special-${name}`;
+    b.title = name;
+    b.addEventListener("click", () => {
+      selection = { type: "special", name };
+      tool = "place";
+      (document.querySelector('input[name="tool"][value="place"]') as HTMLInputElement).checked = true;
+      void updatePalette();
+    });
+    specials.append(b);
+  }
+}
+
+async function updatePalette(): Promise<void> {
+  for (const input of document.querySelectorAll<HTMLInputElement>('input[name="angle"]')) {
+    const a = Number(input.value);
+    input.disabled =
+      selection.type !== "piece" ||
+      !info.pieces.some(
+        (p) => p.kind === (selection as { kind: string }).kind && p.color === color && p.variant === variant && p.angle === a,
+      );
+    input.checked = a === angle;
+  }
+  for (const b of document.querySelectorAll<HTMLButtonElement>("#pieces button")) {
+    const kind = b.dataset.kind!;
+    const token = pieceToken(kind);
+    b.disabled = token === null;
+    b.setAttribute("aria-pressed", String(selection.type === "piece" && selection.kind === kind));
+    b.innerHTML = await icon(token ?? kind);
+  }
+  for (const b of document.querySelectorAll<HTMLButtonElement>("#specials button")) {
+    const name = b.dataset.special!;
+    const token = specialToken(name);
+    b.disabled = token === null;
+    b.setAttribute("aria-pressed", String(selection.type === "special" && selection.name === name));
+    b.innerHTML = await icon(token ?? fallbackSpecial(name));
+  }
+  const token = selectedToken();
+  $("selection").textContent = token ? `Selected: ${token}` : "Not available in the GC fonts";
+}
+
+function fallbackSpecial(name: string): string {
+  const colors = info.specials[name] ?? [];
+  if (colors.includes("white")) return `{@${name[0]!.toUpperCase()}${name.slice(1)}}`;
+  if (colors.includes("neutral") && !colors.includes("none")) return `{=@${name}}`;
+  return `{@${name}}`;
+}
+
+// --- Event wiring -----------------------------------------------------------------------
+
+function bindRadios(name: string, set: (value: string) => void): void {
+  for (const input of document.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)) {
+    input.addEventListener("change", () => {
+      if (input.checked) set(input.value);
+    });
+  }
+}
+
+function bindOption(id: string, read: (el: HTMLInputElement) => void): void {
+  $<HTMLInputElement>(id).addEventListener("change", (e) => {
+    read(e.currentTarget as HTMLInputElement);
+    void enqueue(refresh);
+  });
+}
+
+function wire(): void {
+  boardEl.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    pressed = squareAt(e);
+    if (pressed) boardEl.setPointerCapture(e.pointerId);
+  });
+  boardEl.addEventListener("pointermove", (e) => {
+    const sq = squareAt(e);
+    if (sq !== hover) {
+      hover = sq;
+      showHover();
+    }
+  });
+  boardEl.addEventListener("pointerleave", () => {
+    hover = null;
+    showHover();
+  });
+  boardEl.addEventListener("pointerup", (e) => {
+    if (e.button !== 0 || !pressed) return;
+    const released = squareAt(e);
+    const from = pressed;
+    pressed = null;
+    if (!released) return;
+    if (released === from) click(from);
+    else drag(from, released);
+  });
+  boardEl.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    const sq = squareAt(e);
+    if (sq) void edit(sq, "");
+  });
+  document.addEventListener("keydown", (e) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("input, textarea, select") || !hover) return;
+    if (e.key === "r" || e.key === "R") {
+      e.preventDefault();
+      rotate(hover, e.shiftKey ? -45 : 45);
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      void edit(hover, "");
+    }
+  });
+
+  // FEN: validate and preview while typing; normalise when the field is left.
+  fenInput.addEventListener("input", () => {
+    const text = fenInput.value;
+    void enqueue(async () => {
+      const r = await py.render(text, state.options);
+      if (failed(r)) {
+        showError(r.error);
+      } else {
+        state.fen = r.fen;
+        view = r;
+        showError("");
+        draw();
+        saveHash();
+      }
+    });
+  });
+  fenInput.addEventListener("change", () => void enqueue(refresh));
+  $("copy-fen").addEventListener("click", () => void navigator.clipboard.writeText(state.fen));
+
+  bindRadios("tool", (v) => (tool = v));
+  bindRadios("color", (v) => {
+    color = v;
+    void updatePalette();
+  });
+  bindRadios("variant", (v) => {
+    variant = v;
+    void updatePalette();
+  });
+  $("angles").addEventListener("change", (e) => {
+    const input = e.target as HTMLInputElement;
+    if (input.name !== "angle" || !input.checked) return;
+    angle = Number(input.value);
+    void updatePalette();
+  });
+
+  const resize = () => {
+    const width = Number($<HTMLInputElement>("files").value);
+    const height = Number($<HTMLInputElement>("ranks").value);
+    if (!(width >= 1 && width <= 26 && height >= 1 && height <= 26)) {
+      setStatus("Boards can be 1 to 26 squares in each direction", true);
+      return;
+    }
+    state.options.arrows = arrowsWithin(width, height);
+    void enqueue(async () => apply(await py.resize(state.fen, width, height)));
+  };
+  $("files").addEventListener("change", resize);
+  $("ranks").addEventListener("change", resize);
+  $("start").addEventListener("click", () => {
+    state.fen = START;
+    state.options.arrows = [];
+    void enqueue(refresh);
+  });
+  $("clear").addEventListener("click", () => {
+    if (!view) return;
+    state.fen = Array(view.ranks).fill(String(view.files)).join("/");
+    state.options.arrows = [];
+    void enqueue(refresh);
+  });
+
+  bindOption("border", (el) => (state.options.border = el.value));
+  bindOption("wall", (el) => (state.options.wall = el.value));
+  bindOption("count", (el) => (state.options.piece_count = el.checked));
+  bindOption("square-size", (el) => (state.options.square_size = Number(el.value) || 20));
+  $<HTMLTextAreaElement>("caption").addEventListener("input", (e) => {
+    state.options.caption = (e.currentTarget as HTMLTextAreaElement).value.split("\n");
+    void enqueue(refresh);
+  });
+  $("clear-arrows").addEventListener("click", () => {
+    state.options.arrows = [];
+    void enqueue(refresh);
+  });
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-export]")) {
+    button.addEventListener("click", () =>
+      enqueue(async () => {
+        const fmt = button.dataset.export!;
+        const result = await py.export(state.fen, state.options, fmt);
+        if (failed(result)) {
+          setStatus(result.error, true);
+          return;
+        }
+        const blob = new Blob([result.data as BlobPart], { type: result.mime });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `diagram.${fmt}`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }),
+    );
+  }
+}
+
+async function main(): Promise<void> {
+  try {
+    await py.ready;
+    info = await py.info();
+  } catch (e) {
+    setStatus(`Could not start Python: ${String(e)}`, true);
+    return;
+  }
+  buildPalette();
+  wire();
+  await updatePalette();
+  await enqueue(refresh);
+  setStatus("Ready");
+  document.body.dataset.ready = "true";
+}
+
+void main();

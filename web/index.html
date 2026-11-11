@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GC Diagram Editor</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>GC Diagram Editor</h1>
+      <span id="status" data-testid="status" role="status">Loading Python…</span>
+    </header>
+    <main>
+      <section id="board-pane">
+        <div id="board" data-testid="board"></div>
+        <p class="hint">
+          Click: place · Right-click: clear · Drag: move · <kbd>R</kbd>/<kbd>Shift</kbd>+<kbd>R</kbd>:
+          rotate · <kbd>Del</kbd>: clear
+        </p>
+      </section>
+
+      <aside>
+        <fieldset>
+          <legend>FEN</legend>
+          <div class="row">
+            <input id="fen" data-testid="fen" spellcheck="false" autocomplete="off" aria-label="Extended FEN" />
+            <button id="copy-fen" type="button">Copy</button>
+          </div>
+          <p id="fen-error" data-testid="fen-error" class="error" role="alert"></p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Tool</legend>
+          <div class="segmented" id="tools">
+            <label><input type="radio" name="tool" value="place" checked />Place</label>
+            <label><input type="radio" name="tool" value="erase" />Erase</label>
+            <label><input type="radio" name="tool" value="hole" />Hole</label>
+            <label><input type="radio" name="tool" value="wall" />Wall</label>
+            <label><input type="radio" name="tool" value="arrow" />Arrow</label>
+          </div>
+        </fieldset>
+
+        <fieldset id="palette">
+          <legend>Figure</legend>
+          <div class="segmented">
+            <label><input type="radio" name="color" value="white" checked />White</label>
+            <label><input type="radio" name="color" value="black" />Black</label>
+            <label><input type="radio" name="color" value="neutral" />Neutral</label>
+          </div>
+          <div class="segmented">
+            <label><input type="radio" name="variant" value="plain" checked />Plain</label>
+            <label><input type="radio" name="variant" value="chameleon" />Chameleon</label>
+            <label><input type="radio" name="variant" value="mirror" />Mirrored</label>
+          </div>
+          <div id="angles" class="segmented" aria-label="Rotation"></div>
+          <div id="pieces" class="glyphs" aria-label="Pieces"></div>
+          <div id="specials" class="glyphs" aria-label="Special figures"></div>
+          <p id="selection" data-testid="selection" class="muted"></p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Board</legend>
+          <div class="row">
+            <label>Files <input id="files" data-testid="files" type="number" min="1" max="26" /></label>
+            <label>Ranks <input id="ranks" data-testid="ranks" type="number" min="1" max="26" /></label>
+          </div>
+          <div class="row">
+            <button id="start" type="button">Start position</button>
+            <button id="clear" type="button">Clear</button>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Diagram</legend>
+          <label>Border
+            <select id="border" data-testid="border">
+              <option value="single">Single</option>
+              <option value="double">Double</option>
+              <option value="outline">Outline</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label>Walls
+            <select id="wall" data-testid="wall">
+              <option value="solid">Solid</option>
+              <option value="box">Box</option>
+            </select>
+          </label>
+          <label>Caption <textarea id="caption" data-testid="caption" rows="2" placeholder="#2"></textarea></label>
+          <label class="check"><input id="count" data-testid="count" type="checkbox" />Piece count</label>
+          <label>Square size (pt) <input id="square-size" type="number" min="4" max="72" step="1" /></label>
+          <div class="row">
+            <span id="arrows" data-testid="arrows" class="muted"></span>
+            <button id="clear-arrows" type="button">Clear arrows</button>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Export</legend>
+          <div class="row">
+            <button data-export="svg" type="button">SVG</button>
+            <button data-export="pdf" type="button">PDF</button>
+            <button data-export="tex" type="button">TeX</button>
+          </div>
+        </fieldset>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
