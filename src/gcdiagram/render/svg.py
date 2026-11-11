@@ -8,6 +8,7 @@ from html import escape
 from .. import svgpath
 from ..board import Board
 from ..catalog import Catalog, load_catalog
+from ..fen import parse
 from ..geometry import Layout, U, layout
 from ..options import RenderOptions
 from ..svgpath import fmt
@@ -31,7 +32,7 @@ def _ident(prefix: str, n: int) -> str:
 
 
 def render_svg(
-    board: Board,
+    board: Board | str,
     options: RenderOptions | None = None,
     *,
     catalog: Catalog | None = None,
@@ -47,6 +48,8 @@ def render_svg(
     """
     opts = options or RenderOptions()
     cat = catalog or load_catalog()
+    if isinstance(board, str):
+        board = parse(board, cat)
     lay = layout(board, opts, cat)
     return _document(lay, opts, cat, id_prefix, xlink, annotate)
 

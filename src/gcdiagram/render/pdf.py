@@ -15,6 +15,7 @@ from functools import lru_cache
 from .. import svgpath
 from ..board import Board
 from ..catalog import Catalog, load_catalog
+from ..fen import parse
 from ..geometry import Layout, U, layout
 from ..options import RenderOptions
 from ..svgpath import fmt
@@ -85,11 +86,13 @@ class _Writer:
 
 
 def render_pdf(
-    board: Board, options: RenderOptions | None = None, *, catalog: Catalog | None = None
+    board: Board | str, options: RenderOptions | None = None, *, catalog: Catalog | None = None
 ) -> bytes:
     """Render a board as a one-page PDF cropped to the diagram."""
     opts = options or RenderOptions()
     cat = catalog or load_catalog()
+    if isinstance(board, str):
+        board = parse(board, cat)
     return _document(layout(board, opts, cat), opts, cat)
 
 
