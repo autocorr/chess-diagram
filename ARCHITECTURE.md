@@ -82,24 +82,25 @@ Quirks, which the catalog builder handles (see §4.1):
         (codes + outlines)   (codes for LuaTeX)     (tools/contact_sheet.py,
                                                      manual verification)
                     │                │
-     ┌──────────────┼───────────┐    │
-     ▼              ▼           ▼    ▼
-  Python pkg     Web editor    LuaLaTeX package
-  (gcdiagram)   (TypeScript)   (gcdiagram.sty/.lua)
-     │
-     ├─► SVG  (outlines, <symbol>/<use>)
-     ├─► PDF  (outlines, hand-written writer)
-     └─► TeX snippet (glyph codes, for the thin .sty)
+                    ▼                ▼
+               Python pkg      LuaLaTeX package
+               (gcdiagram)     (gcdiagram.sty/.lua)
+                    ├─► SVG  (outlines, <symbol>/<use>)
+                    ├─► PDF  (outlines, hand-written writer)
+                    ├─► TeX snippet (glyph codes, for gcsnippet.sty)
+                    └─► gcdiagram.editor ─► web editor
+                                            (Pyodide in a Web Worker + TypeScript UI)
 
-  tests/vectors.json ─► shared FEN conformance tests run by Python, Lua and JS
+  tests/vectors.json ─► shared FEN conformance tests run by Python and Lua
 ```
 
 Two parts are shared by every implementation:
 
 1. **The glyph catalog**, generated once from the TTFs. It is the only place that knows
    which font and code draw a given figure on a given shade.
-2. **The FEN test vectors**, which every parser (Python, Lua and TypeScript) must pass. This
-   keeps the three implementations of the grammar in agreement.
+2. **The FEN test vectors**, which every parser (Python and Lua) must pass. This keeps
+   the two implementations of the grammar in agreement. The browser editor runs the
+   Python package itself, so it needs no third implementation (§10).
 
 ---
 
@@ -125,6 +126,7 @@ chess-diagram-generator/
 │   ├── options.py                  # RenderOptions (border style, caption, arrows, scale, …)
 │   ├── svgpath.py                  # outline parsing; compact SVG and cubic PDF encodings
 │   ├── textmetrics.py              # Helvetica widths for caption layout
+│   ├── editor.py                   # JSON-friendly operations for the browser editor
 │   ├── render/
 │   │   ├── svg.py
 │   │   ├── pdf.py                  # minimal PDF 1.4 writer (paths + Flate + Helvetica caption)
@@ -136,9 +138,11 @@ chess-diagram-generator/
 │   ├── gcdiagram.lua               # route B: Lua port of parser, layout and emitter
 │   ├── gcdiagram-catalog.lua       # generated
 │   └── examples/booklet.py         # 100-diagram size and speed comparison
-├── web/                            # browser editor (TypeScript + Vite)
-│   ├── src/{fen.ts, board.ts, catalog.ts, render.ts, editor/…}
-│   └── public/catalog.json         # copied from src/gcdiagram/data at build
+├── web/                            # browser editor: Pyodide + TypeScript UI (Vite, Node ≥ 22.12)
+│   ├── index.html, src/main.ts     # UI: input handling, palette, options, URL hash, export
+│   ├── src/worker.ts, python.ts    # Pyodide worker and its promise-based client
+│   ├── vite.config.ts              # serves Pyodide + live Python sources (no CDN)
+│   └── e2e/                        # Playwright tests
 └── tests/
     ├── vectors.json                # shared FEN conformance cases
     ├── cases.py                    # representative diagrams for renderer tests
@@ -473,24 +477,53 @@ Lua port, which the parity tests above protect.
 
 ## 10. Browser editor (`web/`)
 
-- TypeScript, built with Vite, with no UI framework. It uses `catalog.json` (outlines) and a
-  TypeScript port of the parser and serialiser that runs against `tests/vectors.json`.
-- **Rendering:** SVG built in the DOM, with the same `<symbol>`/`<use>` layout as §8.1.
-  Because geometry comes from the catalog, the editor draws exactly what the SVG export
-  produces.
-- **Editing:**
-  - A palette of pieces and colours with a rotation selector (only angles that exist for
-    that piece can be picked), plus neutral and chameleon toggles and specials.
-  - Click a square to place the selected figure. Drag to move. Right-click or Delete to
-    clear. Mouse wheel or R to rotate the piece under the cursor.
-  - Hole and wall tools, an arrow tool (drag from one square to another), and controls to
-    resize the board (add or remove ranks and files).
-  - Border style and caption fields.
-- **FEN field:** editing the board updates the FEN, and editing the FEN redraws the board.
-  Parse errors are shown inline.
-- **Export:** SVG export works in the browser. PDF export can come later, either by porting
-  `pdf.py` or by calling the Python CLI.
-- **State:** the URL hash stores the FEN and options, so a link reproduces a diagram.
+The editor is meant to be run locally (`npm run dev` in `web/`), not hosted on the web.
+It runs the **real Python package in Pyodide**, so there is no third implementation of
+the parser and renderer to keep in sync, and SVG, PDF and TeX exports come out exactly
+as the CLI writes them.
+
+```
+ main.ts (UI, DOM events) ──postMessage──► worker.ts (Pyodide 314, Python 3.14)
+        ▲                                    └─ import gcdiagram.editor
+        └──────── {fen, svg, geometry} ◄─────── render / set_cell / move / rotate / …
+```
+
+- **Serving:** a Vite plugin (`vite.config.ts`) serves the Pyodide runtime from
+  `node_modules/pyodide`, so it works offline with no CDN. It also serves
+  `/gcdiagram-sources.json`, the live `src/gcdiagram` package as `{path: text}`, which the
+  worker writes into Pyodide's file system before importing it. Editing a `.py` file
+  reloads the page with the new code. `npm run build` copies both into `dist/` (about
+  14 MB, mostly the Pyodide runtime).
+- **Python side** (`gcdiagram/editor.py`, tested by `tests/test_editor.py`): plain-data
+  functions. The board state is a canonical FEN string and the options are a dict of
+  `RenderOptions` fields. `render` returns the canonical FEN, an SVG annotated with
+  `data-square`, the board origin and size for pointer mapping, and each cell's token.
+  The edit functions (`set_cell`, `move`, `rotate`, `resize`) take a FEN and return a
+  new one, so every edit is checked by the real parser. `rotate` steps to the next angle
+  the fonts support for that piece. `export` returns SVG, PDF bytes or a TeX snippet.
+  `info` and `figure_svg` feed the palette. Errors come back as `{error, code}`.
+- **UI** (`main.ts`, no framework): it only handles input and display.
+  - The colour, variant and rotation controls disable whatever the fonts don't contain.
+  - Tools: place (clicking the same figure again removes it), erase, hole, wall and
+    arrow (drag from one square to another; doing it again removes the arrow).
+  - Drag to move. Right-click or <kbd>Del</kbd> clears; <kbd>R</kbd> and
+    <kbd>Shift</kbd>+<kbd>R</kbd> rotate the piece under the pointer.
+  - Board size, border, wall style, caption, piece count and square size.
+  - FEN field: validated as you type and normalised when you leave it.
+  - URL hash state, so a link or a reload restores the diagram.
+  - SVG/PDF/TeX download.
+- **Pointer mapping:** client coordinates go through the SVG's screen CTM into font units,
+  and then into a square using the board origin returned by `render`.
+- **Ordering:** UI actions run through one queue, so fast clicks can't race.
+  `body[data-busy]` is set while work is pending, and `body[data-ready]` once Python has
+  started and the first render is done. The tests wait on both.
+
+Decision record: a TypeScript port of the parser, layout and SVG renderer was written
+first. It passed the shared vectors and reproduced the golden SVGs byte for byte. It was
+replaced by Pyodide because the editor is only hosted locally, where the roughly 12 MB
+runtime and its startup delay don't matter, and one implementation is easier to maintain.
+If diagrams ever need to be shown on public web pages, a small TypeScript renderer (or the
+pre-rendered SVGs) would be the lighter option.
 
 ---
 
@@ -502,7 +535,7 @@ Lua port, which the parity tests above protect.
   `invalid` list of `{fen, error}`, where `error` is a stable code: `empty`, `empty-rank`,
   `uneven-ranks`, `bad-count`, `too-large`, `bad-char`, `unterminated-token`,
   `bad-token`, `bad-angle`, `unsupported` or `unknown-special`. Python (pytest), Lua
-  (`texlua`) and the web build (vitest) all run the same file.
+  (`texlua`) both run the same file.
 - **Catalog tests:** completeness, key format, uniqueness of codes, cell bounds, that
   `catalog.json` is up to date with the spec and fonts, and that the Lua copy matches. The
   contact sheet was reviewed by eye in Phase 1.
@@ -516,6 +549,14 @@ Lua port, which the parity tests above protect.
   Each case is also rasterised with `pdftoppm` and compared (RMSE after downsampling)
   against an Inkscape raster of the SVG. Tests that need these tools are skipped when
   they're missing.
+- **Editor bridge** (`tests/test_editor.py`): palette info, render geometry, every edit
+  operation, error reporting, and exports identical to the renderers.
+- **Browser** (`web/e2e/`, Playwright with Chromium; `npm run test:e2e`): Python starts
+  without page errors, FEN typing validates and normalises, placing, toggling, clearing,
+  rotating (with unsupported angles skipped), dragging, holes, walls, resizing, arrows and
+  options all work, the URL hash restores state, and the SVG/PDF/TeX downloads are
+  byte-identical to `uv run gcdiagram` with the same arguments. The suite passed 10
+  repeated runs (80 tests) without a failure.
 - **LaTeX** (`tests/test_latex.py`): `texlua` runs the shared vectors against the Lua
   parser; the Lua `\gcbox` body must equal Python's for every case; route A must compile
   with LuaLaTeX and XeLaTeX with each GC font embedded once; route B must compile and
@@ -532,7 +573,8 @@ Lua port, which the parity tests above protect.
    the CLI, the shared vectors and pytest.
 3. **LaTeX** (done): route A (snippets and `gcsnippet.sty`), route B (LuaLaTeX package),
    and the 100-diagram comparison. Both routes are kept (§9).
-4. **Browser editor:** TypeScript parser port, renderer, editing tools and SVG export.
+4. **Browser editor** (done): Pyodide running the Python package, a TypeScript UI, and
+   Playwright tests (§10).
 
 ## 13. Open questions
 

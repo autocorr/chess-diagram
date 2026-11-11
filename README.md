@@ -3,7 +3,8 @@
 Chess and fairy-chess diagrams from an extended FEN string, drawn with the Good Companion
 (GC2004) diagram fonts by David L. Brown. Output is optimised SVG or standalone PDF, with
 vector outlines and no embedded fonts. Diagrams can also be typeset directly in LaTeX
-(LuaLaTeX or XeLaTeX). A browser editor is planned; see [ARCHITECTURE.md](ARCHITECTURE.md).
+(LuaLaTeX or XeLaTeX) and edited in a local browser editor. The design is described in
+[ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Usage
 
@@ -84,6 +85,26 @@ uv run gcdiagram "4k3/8/8/8/8/8/8/4K3" -c "#2" -n -o mate.tex
 ...
 \input{mate}
 ```
+
+## Browser editor
+
+A local editor that runs this Python package in the browser through Pyodide. It needs
+Node.js 22.12 or newer; `web/.nvmrc` pins 26.
+
+```sh
+cd web
+nvm use            # or any Node >= 22.12
+npm install
+npm run dev        # http://localhost:5173
+```
+
+Click to place the selected figure; clicking it again removes it. Drag to move,
+right-click or <kbd>Del</kbd> to clear, and <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> to
+rotate the piece under the pointer. There are also tools for holes, walls and arrows
+(drag between squares). The FEN field and the URL stay in sync with the board, and
+SVG/PDF/TeX exports are identical to the CLI's. Edits to `src/gcdiagram/*.py` reload the
+page. `npm run test:e2e` runs the Playwright tests; the first time, run
+`npx playwright install chromium`.
 
 ## Development
 
