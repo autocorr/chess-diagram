@@ -6,6 +6,7 @@ Catalog paths use absolute M, L, H, V, Q and Z commands, possibly with implicit 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 Segment = tuple  # ("M", x, y) | ("L", x, y) | ("Q", x1, y1, x, y) | ("Z",)
 
@@ -56,9 +57,9 @@ def parse(d: str) -> list[Segment]:
     return out
 
 
-def fmt(v: float) -> str:
-    """Shortest decimal form: 12, -3.5, .5, -.25 (two decimals at most)."""
-    s = f"{round(v, 2):.2f}".rstrip("0").rstrip(".")
+def fmt(v: float, places: int = 2) -> str:
+    """Shortest decimal form with at most `places` (>= 1) decimals: 12, -3.5, .5, -.25."""
+    s = f"{v:.{places}f}".rstrip("0").rstrip(".")
     if s in ("-0", ""):
         return "0"
     if s.startswith("0."):
@@ -144,3 +145,15 @@ def to_pdf(segments: list[Segment]) -> str:
         else:
             ops.append("h")
     return "\n".join(ops)
+
+
+@lru_cache(maxsize=1024)
+def svg_path(d: str) -> str:
+    """Catalog path data as compact SVG path data (cached: glyphs repeat across diagrams)."""
+    return to_svg(parse(d))
+
+
+@lru_cache(maxsize=1024)
+def pdf_path(d: str) -> str:
+    """Catalog path data as PDF path construction operators (cached)."""
+    return to_pdf(parse(d))

@@ -202,5 +202,5 @@ def figure_svg(token: str, shade: str = "light") -> str:
     cat = load_catalog()
     glyph = cat.cell_glyph(cell if isinstance(cell, Square) else EMPTY, sh)
     assert glyph is not None
-    d = svgpath.to_svg(svgpath.parse(cat.outlines[glyph.outline]))
+    d = svgpath.svg_path(cat.outlines[glyph.outline])
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 2000"><path d="{d}"/></svg>'

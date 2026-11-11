@@ -134,6 +134,11 @@ class Board:
                 counts[fig.color] += 1
         return counts["white"], counts["black"], counts["neutral"]
 
+    def piece_count_label(self) -> str:
+        """'(w+b)', or '(w+b+n)' when there are neutral pieces."""
+        w, b, n = self.piece_count()
+        return f"({w}+{b}+{n})" if n else f"({w}+{b})"
+
 
 _SQUARE_RE = re.compile(r"([a-z])([1-9][0-9]?)")
 

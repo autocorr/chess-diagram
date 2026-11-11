@@ -15,11 +15,12 @@ from __future__ import annotations
 from dataclasses import replace
 
 from ..board import Board
-from ..catalog import Catalog, Glyph, load_catalog
-from ..fen import parse
+from ..catalog import Catalog, Glyph
 from ..geometry import U, layout
 from ..options import RenderOptions
-from ..render.pdf import parse_color
+from ..svgpath import fmt
+from . import prepare
+from .pdf import parse_color
 
 BASELINE = 1500  # font units from the top of a cell down to the glyph baseline
 
@@ -43,14 +44,7 @@ def tex_escape(text: str) -> str:
 
 def num(units: float) -> str:
     """Font units as a decimal number of squares: 100 -> '.05', -233 -> '-.1165'."""
-    s = f"{units / U:.5f}".rstrip("0").rstrip(".")
-    if s in ("", "-0"):
-        return "0"
-    if s.startswith("0."):
-        return s[1:]
-    if s.startswith("-0."):
-        return "-" + s[2:]
-    return s
+    return fmt(units / U, 5)
 
 
 def _cell_glyph(board: Board, r: int, c: int, opts: RenderOptions, cat: Catalog) -> Glyph:
@@ -76,10 +70,7 @@ def tex_parts(
     board: Board | str, options: RenderOptions | None = None, *, catalog: Catalog | None = None
 ) -> tuple[str, str, str, str]:
     """(width, height, body, piece count) as they appear in the \\gcbox call."""
-    opts = options or RenderOptions()
-    cat = catalog or load_catalog()
-    if isinstance(board, str):
-        board = parse(board, cat)
+    board, opts, cat = prepare(board, options, catalog)
     lay = layout(board, replace(opts, caption=(), piece_count=False, padding=0), cat)
     height = lay.height
 
@@ -105,10 +96,7 @@ def tex_parts(
         rgb = "".join(f"{round(v * 255):02X}" for v in parse_color(opts.arrow_color))
         lines.append(rf"\gcarrows{{{rgb}}}{{{opts.arrow_opacity:g}}}{{{paths}}}%")
 
-    count = ""
-    if opts.piece_count:
-        w, b, n = board.piece_count()
-        count = f"({w}+{b}+{n})" if n else f"({w}+{b})"
+    count = board.piece_count_label() if opts.piece_count else ""
     return num(lay.width), num(height), "\n".join(lines), count
 
 

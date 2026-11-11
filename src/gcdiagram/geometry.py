@@ -81,12 +81,9 @@ def layout(
     # Caption lines (centred) and the piece count (right-aligned on the first line).
     size = opts.caption_size * U
     lines = list(opts.caption)
-    count = ""
-    if opts.piece_count:
-        w, b, n = board.piece_count()
-        count = f"({w}+{b}+{n})" if n else f"({w}+{b})"
-        if not lines:
-            lines = [""]
+    count = board.piece_count_label() if opts.piece_count else ""
+    if count and not lines:
+        lines = [""]
     text_w = max(
         [text_width(line, size) for line in lines]
         + [text_width(lines[0], size) + 2 * text_width(count, size) + size if count else 0],

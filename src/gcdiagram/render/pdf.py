@@ -10,18 +10,16 @@ from __future__ import annotations
 
 import re
 import zlib
-from functools import lru_cache
 
-from .. import svgpath
 from ..board import Board
-from ..catalog import Catalog, load_catalog
-from ..fen import parse
+from ..catalog import Catalog
 from ..geometry import Layout, U, layout
 from ..options import RenderOptions
-from ..svgpath import fmt
+from ..svgpath import fmt, pdf_path
 from ..textmetrics import text_width
+from . import prepare
 
-_NAMED = {"white": "#fff", "black": "#000", "none": ""}
+_NAMED = {"white": "#fff", "black": "#000"}
 
 
 def parse_color(color: str) -> tuple[float, float, float]:
@@ -38,11 +36,6 @@ def parse_color(color: str) -> tuple[float, float, float]:
 
 def _rgb(color: str, op: str) -> str:
     return " ".join(fmt(v) for v in parse_color(color)) + f" {op}"
-
-
-@lru_cache(maxsize=1024)
-def _glyph_ops(d: str) -> str:
-    return svgpath.to_pdf(svgpath.parse(d)) + "\nf"
 
 
 def _pdf_string(text: str) -> str:
@@ -89,10 +82,7 @@ def render_pdf(
     board: Board | str, options: RenderOptions | None = None, *, catalog: Catalog | None = None
 ) -> bytes:
     """Render a board as a one-page PDF cropped to the diagram."""
-    opts = options or RenderOptions()
-    cat = catalog or load_catalog()
-    if isinstance(board, str):
-        board = parse(board, cat)
+    board, opts, cat = prepare(board, options, catalog)
     return _document(layout(board, opts, cat), opts, cat)
 
 
@@ -122,7 +112,7 @@ def _document(lay: Layout, opts: RenderOptions, cat: Catalog) -> bytes:
             x0, y0, x1, y1 = g.bbox or (0, 0, U, U)
             num = w.add(
                 w.stream(
-                    _glyph_ops(cat.outlines[g.outline]),
+                    pdf_path(cat.outlines[g.outline]) + "\nf",
                     f"/Type/XObject/Subtype/Form/BBox[{x0 - 1} {y0 - 1} {x1 + 1} {y1 + 1}]",
                 )
             )

@@ -2,30 +2,23 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 from html import escape
+from string import ascii_lowercase
 
-from .. import svgpath
 from ..board import Board
-from ..catalog import Catalog, load_catalog
-from ..fen import parse
+from ..catalog import Catalog
 from ..geometry import Layout, U, layout
 from ..options import RenderOptions
-from ..svgpath import fmt
+from ..svgpath import fmt, svg_path
+from . import prepare
 
 FONT_FAMILY = "Helvetica,Arial,sans-serif"
-_ALPHABET = "abcdefghijklmnopqrstuvwxyz"
-
-
-@lru_cache(maxsize=1024)
-def _compact(d: str) -> str:
-    return svgpath.to_svg(svgpath.parse(d))
 
 
 def _ident(prefix: str, n: int) -> str:
     s = ""
     while True:
-        s = _ALPHABET[n % 26] + s
+        s = ascii_lowercase[n % 26] + s
         n = n // 26 - 1
         if n < 0:
             return prefix + s
@@ -46,12 +39,8 @@ def render_svg(
     xlink=True writes xlink:href for older SVG 1.1 consumers (e.g. some Inkscape builds).
     annotate=True adds data-square attributes to placed glyphs (for scripting).
     """
-    opts = options or RenderOptions()
-    cat = catalog or load_catalog()
-    if isinstance(board, str):
-        board = parse(board, cat)
-    lay = layout(board, opts, cat)
-    return _document(lay, opts, cat, id_prefix, xlink, annotate)
+    board, opts, cat = prepare(board, options, catalog)
+    return _document(layout(board, opts, cat), opts, cat, id_prefix, xlink, annotate)
 
 
 def _document(
@@ -82,7 +71,7 @@ def _document(
             ids[outline] = _ident(prefix, len(ids))
     if ids:
         parts.append("<defs>")
-        parts += [f'<path id="{i}" d="{_compact(cat.outlines[o])}"/>' for o, i in ids.items()]
+        parts += [f'<path id="{i}" d="{svg_path(cat.outlines[o])}"/>' for o, i in ids.items()]
         parts.append("</defs>")
 
     for use in lay.glyphs:

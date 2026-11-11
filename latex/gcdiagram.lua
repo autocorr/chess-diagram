@@ -480,8 +480,6 @@ local function num(units)
 end
 M.num = num
 
-local function utf8char(code) return utf8.char(code) end
-
 local function cell_glyph(board, r, c, opts)
   local cell = board.cells[r][c]
   local sh = shade(board, r, c)
@@ -503,7 +501,7 @@ local function rank_runs(board, r, opts)
   for c = 1, board.width do
     local g = cell_glyph(board, r, c, opts)
     local font, code, dx = g[1], g[2], g[3]
-    local text = utf8char(code)
+    local text = utf8.char(code)
     if dx then text = "\\gcfix{" .. num(dx) .. "}{" .. text .. "}" end
     if #runs > 0 and runs[#runs][1] == font then
       runs[#runs][2] = runs[#runs][2] .. text
