@@ -8,7 +8,7 @@ from JavaScript; errors come back as {"error": message, "code": code}.
 from __future__ import annotations
 
 from dataclasses import fields
-from typing import Any
+from typing import Any, get_args
 
 from . import svgpath
 from .board import (
@@ -37,8 +37,8 @@ from .render.svg import render_svg
 from .render.tex import render_tex
 
 _OPTION_FIELDS = {f.name for f in fields(RenderOptions)}
-_COLORS: tuple[Color, ...] = ("white", "black", "neutral")
-_VARIANTS: tuple[Variant, ...] = ("plain", "chameleon", "mirror")
+_COLORS: tuple[Color, ...] = get_args(Color)
+_VARIANTS: tuple[Variant, ...] = get_args(Variant)
 
 
 def options_from(data: dict[str, Any] | None) -> RenderOptions:

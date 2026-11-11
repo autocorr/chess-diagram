@@ -32,7 +32,7 @@ ARROW_SHAFT = 200
 ARROW_HEAD_LENGTH = 640
 ARROW_HEAD_WIDTH = 600
 
-# Annotation marks, centerd in their square.
+# Annotation marks, centered in their square.
 MARK_LINE = 140  # line thickness of the circle, square and triangle
 CIRCLE_RADIUS = 880
 SQUARE_HALF = 820
@@ -430,7 +430,7 @@ def annotation_mark(board: Board, spec: str | Annotation, bx: float, by: float) 
         path = _polygon([(cx - o, cy - o), (cx + o, cy - o), (cx + o, cy + o), (cx - o, cy + o)])
         path += _polygon([(cx - i, cy - i), (cx - i, cy + i), (cx + i, cy + i), (cx + i, cy - i)])
     elif ann.kind == "triangle":
-        # Point up, with the bounding box centerd in the square. The inner edge is
+        # Point up, with the bounding box centered in the square. The inner edge is
         # MARK_LINE inside the outer one; an equilateral triangle's inradius is half
         # its circumradius, hence the 2 * MARK_LINE.
         ty = cy + TRIANGLE_RADIUS / 4

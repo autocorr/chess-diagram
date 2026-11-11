@@ -70,7 +70,7 @@ def _bounds(path: list) -> tuple[float, float, float, float]:
 
 
 @pytest.mark.parametrize("kind", ["circle", "cross", "square", "triangle", "dot"])
-def test_marks_are_centerd_in_their_square(kind: str) -> None:
+def test_marks_are_centered_in_their_square(kind: str) -> None:
     lay = layout(parse(EMPTY), RenderOptions(annotations=[f"{kind}:e4"]))
     (mark,) = lay.marks
     x0, y0, x1, y1 = _bounds(mark.path)

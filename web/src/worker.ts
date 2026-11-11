@@ -46,8 +46,12 @@ self.onmessage = async (event: MessageEvent<Request>) => {
     const func = editor[fn] as ((...a: unknown[]) => unknown) | undefined;
     if (typeof func !== "function") throw new Error(`no editor function ${fn}`);
     const pyArgs = args.map((a) => (a !== null && typeof a === "object" ? py.toPy(a) : a));
-    const raw = func(...pyArgs) as PyResult | string | number;
-    for (const a of pyArgs) (a as PyResult)?.destroy?.();
+    let raw: PyResult | string | number;
+    try {
+      raw = func(...pyArgs) as PyResult | string | number;
+    } finally {
+      for (const a of pyArgs) (a as PyResult)?.destroy?.();
+    }
     let result: unknown = raw;
     if (raw && typeof raw === "object" && raw.toJs) {
       result = raw.toJs({ dict_converter: Object.fromEntries, create_pyproxies: false });

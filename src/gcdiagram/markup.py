@@ -40,11 +40,6 @@ def parse_markup(line: str) -> list[Run]:
     return runs
 
 
-def plain(line: str) -> str:
-    """A caption line without its markup."""
-    return "".join(r.text for r in parse_markup(line))
-
-
 def _append(runs: list[Run], run: Run) -> None:
     if not run.text:
         return

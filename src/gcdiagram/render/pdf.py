@@ -13,10 +13,9 @@ import zlib
 
 from ..board import Board
 from ..catalog import Catalog
-from ..geometry import WALL_FILL, Layout, U, layout
+from ..geometry import WALL_FILL, Layout, U, layout, line_width
 from ..options import RenderOptions
 from ..svgpath import fmt, pdf_path, to_pdf
-from ..textmetrics import text_width
 from . import prepare
 
 _NAMED = {"white": "#fff", "black": "#000"}
@@ -173,7 +172,7 @@ def _document(lay: Layout, opts: RenderOptions, cat: Catalog) -> bytes:
         )
         resources.append(f"/Font<<{fonts}>>")
         for t in lay.texts:
-            width = sum(text_width(r.text, t.size, r.bold) for r in t.runs)
+            width = line_width(t.runs, t.size)
             x = t.x - {"start": 0, "middle": width / 2, "end": width}[t.anchor]
             shows = "".join(
                 f"/{names[(r.bold, r.italic)]} {fmt(t.size)} Tf"

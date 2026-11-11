@@ -12,7 +12,7 @@ from gcdiagram.cli import main
 from gcdiagram.editor import options_from
 from gcdiagram.fen import parse
 from gcdiagram.geometry import CAPTION_GAP, LINE_HEIGHT, U, layout, wrap_caption
-from gcdiagram.markup import Run, parse_markup, plain
+from gcdiagram.markup import Run, parse_markup
 from gcdiagram.options import RenderOptions
 from gcdiagram.render.pdf import render_pdf
 from gcdiagram.render.svg import render_svg
@@ -36,7 +36,6 @@ def test_markup_leaves_other_text_alone() -> None:
     assert parse_markup("h#2* a<b <u>x</u> 3 < 4") == [Run("h#2* a<b <u>x</u> 3 < 4")]
     assert parse_markup("<b>open to the end") == [Run("open to the end", bold=True)]
     assert parse_markup("<b></b>") == []
-    assert plain("<i>The Problemist</i> 2024") == "The Problemist 2024"
 
 
 def test_bold_is_wider() -> None:

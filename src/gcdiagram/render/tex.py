@@ -57,6 +57,11 @@ def caption_tex(line: str) -> str:
     return "".join(out)
 
 
+def _hex(color: str) -> str:
+    """A color as RRGGBB, as xcolor's HTML model takes it."""
+    return "".join(f"{round(v * 255):02X}" for v in parse_color(color))
+
+
 def num(units: float) -> str:
     """Font units as a decimal number of squares: 100 -> '.05', -233 -> '-.1165'."""
     return fmt(units / U, 5)
@@ -105,7 +110,7 @@ def tex_parts(
         )
 
     if lay.wall_fills:
-        lines.append(rf"\gcfills{{{WALL_FILL[1:].upper()}}}{{{rects(lay.wall_fills)}}}%")
+        lines.append(rf"\gcfills{{{_hex(WALL_FILL)}}}{{{rects(lay.wall_fills)}}}%")
     if lay.rects:
         lines.append(rf"\gcrects{{{rects(lay.rects)}}}%")
     if lay.arrows:
@@ -115,11 +120,12 @@ def tex_parts(
             + r"\gcz"
             for pts in lay.arrows
         )
-        rgb = "".join(f"{round(v * 255):02X}" for v in parse_color(opts.arrow_color))
-        lines.append(rf"\gcarrows{{{rgb}}}{{{opts.arrow_opacity:g}}}{{{paths}}}%")
+        lines.append(
+            rf"\gcarrows{{{_hex(opts.arrow_color)}}}{{{opts.arrow_opacity:g}}}{{{paths}}}%"
+        )
     for mark in lay.marks:
-        rgb = "".join(f"{round(v * 255):02X}" for v in parse_color(mark.fill))
-        lines.append(rf"\gcmark{{{rgb}}}{{{num(mark.halo)}}}{{{_tex_path(mark.path, height)}}}%")
+        path = _tex_path(mark.path, height)
+        lines.append(rf"\gcmark{{{_hex(mark.fill)}}}{{{num(mark.halo)}}}{{{path}}}%")
 
     count = board.piece_count_label() if opts.piece_count else ""
     return num(lay.width), num(height), "\n".join(lines), count

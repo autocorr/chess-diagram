@@ -33,6 +33,9 @@ from .catalog import Catalog, load_catalog
 
 PIECE_LETTERS = "KQRBNPkqrbnp"
 MODIFIERS: dict[str, Variant | None] = {"~": "chameleon", "!": "mirror", "=": None}
+_VARIANT_MODIFIER: dict[Variant, str] = {"plain": ""} | {
+    v: m for m, v in MODIFIERS.items() if v is not None
+}
 
 
 class FenError(ValueError):
@@ -200,10 +203,7 @@ def figure_token(figure: Figure, catalog: Catalog | None = None) -> str:
         name = figure.name.capitalize() if figure.color == "white" else figure.name
         return f"{{@{name}}}"
     letter = figure.kind if figure.color != "black" else figure.kind.lower()
-    if figure.color == "neutral":
-        mod = "="
-    else:
-        mod = {"plain": "", "chameleon": "~", "mirror": "!"}[figure.variant]
+    mod = "=" if figure.color == "neutral" else _VARIANT_MODIFIER[figure.variant]
     angle = str(figure.angle) if figure.angle else ""
     if not mod and not angle:
         return letter

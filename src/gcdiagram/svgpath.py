@@ -127,11 +127,12 @@ def to_svg(segments: list[Segment]) -> str:
 def to_pdf(segments: list[Segment]) -> str:
     """PDF path construction operators (quadratics raised to cubics), without a paint op."""
     ops: list[str] = []
-    x = y = 0.0
+    x = y = sx = sy = 0.0
     for seg in segments:
         op = seg[0]
         if op == "M":
             x, y = seg[1], seg[2]
+            sx, sy = x, y
             ops.append(f"{fmt(x)} {fmt(y)} m")
         elif op == "L":
             x, y = seg[1], seg[2]
@@ -144,6 +145,7 @@ def to_pdf(segments: list[Segment]) -> str:
             x, y = ex, ey
         else:
             ops.append("h")
+            x, y = sx, sy
     return "\n".join(ops)
 
 

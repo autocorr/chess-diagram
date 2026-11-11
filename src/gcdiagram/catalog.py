@@ -27,7 +27,6 @@ class Glyph:
 class Catalog:
     def __init__(self, data: dict) -> None:
         self.cell: int = data["cell"]
-        self.fonts: dict[str, str] = data["fonts"]
         self.outlines: dict[str, str] = data["outlines"]
         self.glyphs: dict[str, Glyph] = {
             key: Glyph(
@@ -48,9 +47,6 @@ class Catalog:
 
     def __getitem__(self, key: str) -> Glyph:
         return self.glyphs[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.glyphs
 
     def supports(self, figure: Figure) -> bool:
         return figure_key(figure, "light") in self.glyphs

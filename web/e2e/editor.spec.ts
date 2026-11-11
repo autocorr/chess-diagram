@@ -470,6 +470,7 @@ test.describe("touch", () => {
     await expect(page.getByRole("button", { name: "Rotate clockwise" })).toBeHidden();
     await recolor.tap();
     await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@Star}");
+    await expect(page.getByRole("button", { name: "Rotate clockwise" })).toBeHidden(); // white too
     await page.getByRole("button", { name: "Clear square" }).tap();
     await expect(menu).toBeHidden();
     await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/8");
