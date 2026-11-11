@@ -128,20 +128,21 @@ chess-diagram-generator/
 │   ├── render/
 │   │   ├── svg.py
 │   │   ├── pdf.py                  # minimal PDF 1.4 writer (paths + Flate + Helvetica caption)
-│   │   └── tex.py                  # LaTeX snippet output
+│   │   └── tex.py                  # LaTeX snippet output (route A)
 │   └── cli.py                      # `gcdiagram FEN -o out.svg|pdf|tex [options]`
 ├── latex/
-│   ├── gcdiagram.sty               # LuaLaTeX package (parsing in Lua)
-│   ├── gcdiagram.lua
+│   ├── gcsnippet.sty               # shared drawing primitives (\gcbox); LuaLaTeX/XeLaTeX
+│   ├── gcdiagram.sty               # route B: \gcdiagram[keys]{fen} (LuaLaTeX)
+│   ├── gcdiagram.lua               # route B: Lua port of parser, layout and emitter
 │   ├── gcdiagram-catalog.lua       # generated
-│   ├── gcsnippet.sty               # thin package for Python-generated snippets
-│   └── examples/                   # test documents, 100-diagram size benchmark
+│   └── examples/booklet.py         # 100-diagram size and speed comparison
 ├── web/                            # browser editor (TypeScript + Vite)
 │   ├── src/{fen.ts, board.ts, catalog.ts, render.ts, editor/…}
 │   └── public/catalog.json         # copied from src/gcdiagram/data at build
 └── tests/
     ├── vectors.json                # shared FEN conformance cases
     ├── cases.py                    # representative diagrams for renderer tests
+    ├── lua/                        # texlua runners for the vectors and Lua/Python parity
     ├── test_*.py
     └── golden/                     # golden SVG outputs
 ```
@@ -376,14 +377,37 @@ lines, so they can't depend on stroke-join settings.
 
 ### 8.3 TeX snippet (`render/tex.py`), LaTeX route A
 
-- Outputs `\gcboard{…}`: one row of glyph codes per rank, each tagged with its font, e.g.
-  `\gcD{\char"4C}`. Glyphs with a catalog `dx` are wrapped in compensating kerns. Walls
-  are drawn as `\rule`. Hole borders and arrows are drawn with a TikZ overlay that uses
-  coordinates computed in Python.
-- `latex/gcsnippet.sty` loads the three fonts, sets cell width and line spacing to exactly
-  one cell, and provides the caption macro.
-- Works with LuaLaTeX and XeLaTeX through `fontspec`. pdfLaTeX would need Type 1
-  conversion, which is out of scope.
+`render_tex` (or `gcdiagram FEN -o d.tex`) writes one call to `\gcbox`, which is defined
+in `latex/gcsnippet.sty`:
+
+```latex
+\gcbox{6.1}{6.1}{%                                  width, height (in squares)
+\gcrank{.05}{5.3}{\gcD{£££¤££}}%                    one glyph run per rank, at its baseline
+\gcrank{.05}{4.3}{\gcD{£0¤£¤£}\gcY{0}}%             a run per font
+\gcrects{\gcr{1.05}{3.05}{1}{1}\gcr{0}{6.05}{6.1}{.05}…}%   borders and walls
+\gcarrows{000000}{0.6}{\gcm{x}{y}\gcl{x}{y}…\gcz}%  arrows (colour, opacity, polygons)
+}{\#2}{(3+2)}%                                       caption lines (\\-separated), count
+```
+
+- **Glyphs as text:** every glyph code is a digit, an ASCII letter or a Latin-1 symbol,
+  none of which are special to TeX, so a rank is plain UTF-8 text in the right font.
+  Holes and solid walls use the blank light-square glyph to keep the advance.
+  `\gcfix{dx}{c}` kerns around glyphs with a catalog `dx` (D 0x37).
+- **Units:** coordinates are numbers of squares, multiplied by `\gcsquare` (default 20 pt,
+  set with `\gcsquaresize`), with y pointing up from the diagram's bottom-left corner.
+  The same snippet works at any size. The font is set at size `\gcsquare`, so one em is
+  one square.
+- **Ranks placed explicitly:** TeX gives each glyph box its ink extent as height and
+  depth, not the cell's, so ranks can't be stacked as lines. Each rank is a `\pgftext`
+  at its baseline, 1500 font units below the cell top.
+- **Drawing:** `gcsnippet.sty` uses only the pgf basic layer: rectangles and polygons
+  are filled paths, and arrow opacity uses `\pgfsetfillopacity`. Bounding boxes are set
+  explicitly, so the box is exactly `width × height` squares. Captions are set in the
+  document font (`\gccaptionfont`, default `\small`), centred, with the count
+  right-aligned on the first line.
+- **Fonts:** loaded once at `\begin{document}` with `fontspec`, from `\gcfontpath{dir/}`
+  or the system. Kerning is off, because GC2004Y has a `kern` table. Works with
+  LuaLaTeX and XeLaTeX. pdfLaTeX would need a Type 1 conversion, which is out of scope.
 
 ---
 
@@ -391,27 +415,59 @@ lines, so they can't depend on stroke-join settings.
 
 ```latex
 \usepackage{gcdiagram}
-\gcdiagram[border=double, caption={\#2 \quad (8+6)}, arrows={e2-e4, g1-f3}]
+\gcfontpath{path/to/data/}
+\gcdiagramsetup{size=18pt}
+\gcdiagram[border=double, caption={\#2}, count, arrows={e2-e4, g1-f3}]
           {rnb{q180}kbnr/pppp.ppp/8/8/8/8/PPPPPPPP/{R90}NBQKBN{R270}}
 ```
 
-- `gcdiagram.lua` contains the FEN parser, a port of `fen.py` that must pass
-  `tests/vectors.json`, plus shade logic and glyph lookup through
-  `gcdiagram-catalog.lua`.
-- Lua builds the grid by printing glyph characters (`tex.sprint`) in the right font, and
-  computes the border, hole and arrow segments. Those are emitted as TikZ (or `pgf` for
-  speed) on top of the grid.
-- Fonts are loaded with `\newfontfamily` and `Path=` pointing at the TTF directory,
-  configurable with `\gcdiagramsetup{fontpath=…}`.
-- Key-value options: `border`, `caption`, `arrows`, `markers`, `size` (cell size), `walls`.
+- **Keys** (`l3keys`, per diagram or in `\gcdiagramsetup`): `size`, `border`, `wall`,
+  `caption` (LaTeX text, with `\\` between lines), `count`, `arrows`, `arrow color`
+  (`RRGGBB`) and `arrow opacity`.
+- **Parsing:** the FEN reaches Lua as a string through `\detokenize`/`\lua_escape:e`.
+  `gcdiagram.lua` ports `fen.py`, the layout from `geometry.py` (frame, hole borders
+  with merging, arrows) and the emitter from `render/tex.py`. It returns
+  `\gcLuaResult{w}{h}{body}{count}`, and `\gcbox` from `gcsnippet.sty` draws that, with
+  the caption added on the TeX side. FEN errors become TeX errors with the parser's
+  message.
+- **Kept identical to Python:** the Lua functions are pure, so `texlua` runs them in
+  tests. The Lua parser must pass `tests/vectors.json`, and for every case in
+  `tests/cases.py` the Lua `\gcbox` body must equal Python's byte for byte. The arrow
+  arithmetic is written the same way in both languages (`sqrt`, no intermediate
+  rounding), so the doubles agree. Finally, the same document built with routes A and B
+  must rasterise to identical pixels.
+- **Installation:** `gcsnippet.sty`, `gcdiagram.sty`, `gcdiagram.lua` and
+  `gcdiagram-catalog.lua` must be on both `TEXINPUTS` and `LUAINPUTS` (or in a texmf
+  tree), because LuaTeX finds `require`d modules through `LUAINPUTS`.
 
 ### Comparing routes A and B
 
-`latex/examples/booklet-100.tex` will be built both ways. The comparison covers final PDF
-size, compile time, how easy each is to use, and whether the rendering matches. In both
-routes the font subsets are embedded once per document, so most of the size saving comes
-from that. The comparison also has a baseline: 100 standalone PDFs included with
-`\includegraphics`.
+`uv run python latex/examples/booklet.py` builds a reproducible booklet of 100 diagrams
+at 16 pt squares (13 pages). About a third of the diagrams have fairy pieces, and every
+seventh has holes. Measured with TeX Live 2022 on Debian 12, with a warm cache:
+
+| Variant | Engine | PDF size | Compile time |
+|---|---|---:|---:|
+| 100 standalone PDFs (`render_pdf`) via `\includegraphics` | LuaLaTeX | 1336 KiB | 0.37 s |
+| Route A: Python snippets (49 KiB of `.tex` in total) | LuaLaTeX | 60 KiB | 0.74 s |
+| Route A | XeLaTeX | 50 KiB | 0.41 s |
+| Route B: `\gcdiagram{fen}` | LuaLaTeX | 60 KiB | 0.75 s |
+
+- **Size:** both LaTeX routes are about **22× smaller** than including standalone PDFs.
+  Each GC font is embedded once as a subset, instead of every figure carrying its own
+  glyph outlines (about 13 KiB each).
+- **Speed:** LuaLaTeX's extra 0.4 s is a fixed cost of loading fonts through luaotfload,
+  not a per-diagram cost. Route B's Lua parsing costs nothing measurable.
+- **Rendering:** routes A and B are pixel-identical. The standalone PDFs differ only in
+  caption font (Helvetica rather than the document font).
+
+Decision: **keep both routes.** They share `gcsnippet.sty`, so the only duplication is the
+Lua port, which the parity tests above protect.
+
+- Route B is the authoring route: FENs live in the `.tex` source and no build step is
+  needed.
+- Route A is for XeLaTeX users, for documents generated by Python, and for build systems
+  that would rather not run Lua.
 
 ---
 
@@ -460,7 +516,11 @@ from that. The comparison also has a baseline: 100 standalone PDFs included with
   Each case is also rasterised with `pdftoppm` and compared (RMSE after downsampling)
   against an Inkscape raster of the SVG. Tests that need these tools are skipped when
   they're missing.
-- **LaTeX:** example documents compile in CI with `lualatex`.
+- **LaTeX** (`tests/test_latex.py`): `texlua` runs the shared vectors against the Lua
+  parser; the Lua `\gcbox` body must equal Python's for every case; route A must compile
+  with LuaLaTeX and XeLaTeX with each GC font embedded once; route B must compile and
+  rasterise pixel-identically to route A; and a bad FEN must give a TeX error. These
+  tests are skipped if `texlua`, `lualatex` or `xelatex` is missing.
 
 ---
 
@@ -470,8 +530,8 @@ from that. The comparison also has a baseline: 100 standalone PDFs included with
    the contact sheet, confirm the code ordering, and add catalog tests.
 2. **Python core** (done): `fen.py`, `board.py`, `geometry.py`, SVG and PDF renderers,
    the CLI, the shared vectors and pytest.
-3. **LaTeX:** route A (snippets and `gcsnippet.sty`), route B (LuaLaTeX package), and the
-   100-diagram comparison. Then decide whether to keep one route or both.
+3. **LaTeX** (done): route A (snippets and `gcsnippet.sty`), route B (LuaLaTeX package),
+   and the 100-diagram comparison. Both routes are kept (§9).
 4. **Browser editor:** TypeScript parser port, renderer, editing tools and SVG export.
 
 ## 13. Open questions

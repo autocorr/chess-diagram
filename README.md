@@ -2,8 +2,8 @@
 
 Chess and fairy-chess diagrams from an extended FEN string, drawn with the Good Companion
 (GC2004) diagram fonts by David L. Brown. Output is optimised SVG or standalone PDF, with
-vector outlines and no embedded fonts. LaTeX and browser-editor integrations are planned
-(see [ARCHITECTURE.md](ARCHITECTURE.md)).
+vector outlines and no embedded fonts. Diagrams can also be typeset directly in LaTeX
+(LuaLaTeX or XeLaTeX). A browser editor is planned; see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Usage
 
@@ -52,13 +52,47 @@ error.
 - wall style: `solid` or `box`
 - padding and a transparent background
 
+## LaTeX
+
+Both routes set diagrams with the real GC fonts, so each font is embedded once per
+document. A 100-diagram booklet is 60 KiB, against 1.3 MiB when 100 standalone PDFs are
+included (see ARCHITECTURE.md §9). The `latex/` directory must be on both `TEXINPUTS`
+and `LUAINPUTS`.
+
+**LuaLaTeX, FEN in the source:**
+
+```latex
+\usepackage{gcdiagram}
+\gcfontpath{/path/to/data/}        % unless the GC2004*.TTF fonts are installed
+\gcdiagramsetup{size=18pt}
+...
+\gcdiagram[caption={\#2}, count, border=double, arrows={e2-e4}]{4k3/8/8/8/8/8/8/4K3}
+```
+
+The other keys are `wall=solid|box`, `arrow color=RRGGBB` and `arrow opacity=0.6`.
+
+**LuaLaTeX or XeLaTeX, snippets written by Python:**
+
+```sh
+uv run gcdiagram "4k3/8/8/8/8/8/8/4K3" -c "#2" -n -o mate.tex
+```
+
+```latex
+\usepackage{gcsnippet}
+\gcfontpath{/path/to/data/}
+\gcsquaresize{18pt}
+...
+\input{mate}
+```
+
 ## Development
 
 ```sh
-uv run pytest                          # tests
+uv run pytest                          # tests (LaTeX ones need texlua, lualatex, xelatex)
 uv run ruff check . && uv run ty check # lint and types
 uv run python tools/build_catalog.py   # rebuild the glyph catalog from data/*.TTF
 uv run python tools/contact_sheet.py   # build/contact-sheet.svg: every glyph with its key
+uv run python latex/examples/booklet.py  # LaTeX size/speed comparison in build/booklet
 ```
 
 The GC fonts are described as "used exclusively for diagrams on www.StrateGems.org".
