@@ -130,6 +130,3 @@ uv run python tools/build_catalog.py   # rebuild the glyph catalog from data/*.T
 uv run python tools/contact_sheet.py   # build/contact-sheet.svg: every glyph with its key
 uv run python latex/examples/booklet.py  # LaTeX size/speed comparison in build/booklet
 ```
-
-The GC fonts are described as "used exclusively for diagrams on www.StrateGems.org".
-Check redistribution rights before publishing the fonts or outlines derived from them.
