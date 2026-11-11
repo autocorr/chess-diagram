@@ -212,7 +212,7 @@ What the fonts cover (all with light and dark versions):
   "fonts": {"D": "GC2004D_.TTF", "X": "GC2004X_.TTF", "Y": "GC2004Y_.TTF"},
   "outlines": {"o17": "M1190 554V257L1044 405Z…"},
   "glyphs": {
-    "piece:Q:white:90:plain:dark": {"font": "D", "code": 78, "outline": "o17", "bbox": [x0, y0, x1, y1]},
+    "piece:Q:white:90:plain:dark": {"font": "D", "code": 76, "outline": "o17", "bbox": [x0, y0, x1, y1]},
     "piece:K:black:90:plain:dark": {"font": "D", "code": 55, "outline": "o9", "bbox": […], "dx": -233}
   }
 }
@@ -352,7 +352,7 @@ glyph borders pixel for pixel and don't depend on stroke-join settings.
 ### 8.3 TeX snippet (`render/tex.py`), LaTeX route A
 
 - Outputs `\gcboard{…}`: one row of glyph codes per rank, each tagged with its font, e.g.
-  `\gcD{\char"4E}`. Glyphs with a catalog `dx` are wrapped in compensating kerns. Walls
+  `\gcD{\char"4C}`. Glyphs with a catalog `dx` are wrapped in compensating kerns. Walls
   are drawn as `\rule`. Hole borders and arrows are drawn with a TikZ overlay that uses
   coordinates computed in Python.
 - `latex/gcsnippet.sty` loads the three fonts, sets cell width and line spacing to exactly
