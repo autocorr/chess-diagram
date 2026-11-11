@@ -1,0 +1,42 @@
+{
+  "standard": {
+    "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR",
+    "options": {
+      "caption": [
+        "#1"
+      ],
+      "piece_count": true
+    }
+  },
+  "fairy": {
+    "fen": "{Q90}{q135}{=R}{~b}{!N90}{@Star}{@ring}{=@hourglass}/{K45}{k225}{=N180}{~P}{!n270}{@box}{@cross}{@half-circle}/8/8",
+    "options": {
+      "border": "double",
+      "arrows": [
+        "a1-h4",
+        "c2-f4"
+      ]
+    }
+  },
+  "holes": {
+    "fen": "..2../.K3./1*4/6/.4./..2..",
+    "options": {
+      "caption": [
+        "Irregular board"
+      ]
+    }
+  },
+  "outline": {
+    "fen": "..2../.K3./1*4/6/.4./..2..",
+    "options": {
+      "border": "outline",
+      "wall": "box"
+    }
+  },
+  "large": {
+    "fen": "10k1/12/12/12/12/12/12/12/12/12/1K10",
+    "options": {
+      "square_size": 12
+    }
+  }
+}
