@@ -110,7 +110,9 @@ rotate the piece under the pointer. There are also tools for holes, walls and
 annotations (drag between squares for an arrow, or click for a circle, cross, square,
 triangle or dot, in the colour chosen under Annotation). Captions go above and below the
 board; select text and press B or I (or Ctrl+B, Ctrl+I) for bold or italic. The FEN field and the URL stay in sync with the board, and
-SVG/PDF/TeX exports are identical to the CLI's. Edits to `src/gcdiagram/*.py` reload the
+SVG/PDF/TeX exports are identical to the CLI's. The editor can also export a PNG at 150,
+300 or 600 dpi, which the browser draws from the SVG; its caption uses the system's
+Helvetica or Arial, and the CLI has no PNG output. Edits to `src/gcdiagram/*.py` reload the
 page. `npm run test:e2e` runs the Playwright tests; the first time, run
 `npx playwright install chromium`.
 

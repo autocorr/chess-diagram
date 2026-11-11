@@ -350,6 +350,32 @@ test("exports are byte-identical to the gcdiagram CLI", async ({ page }) => {
   }
 });
 
+test("PNG export is drawn from the SVG at the chosen resolution", async ({ page }) => {
+  await open(page, "#mark=circle:e4:blue");
+  await page.getByTestId("png-dpi").selectOption("150");
+  const download = page.waitForEvent("download");
+  await page.locator('[data-export="png"]').click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("diagram.png");
+  const png = readFileSync((await file.path())!);
+  expect(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
+  // 8 squares of 20pt plus a 1pt frame each side is 162pt: 337.5px at 150 dpi.
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([338, 338]);
+  // Sample pixels: the frame is black, an empty light square white, the circle blue.
+  const pixels = await page.evaluate(async (data) => {
+    const bitmap = await createImageBitmap(new Blob([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))]));
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(bitmap, 0, 0);
+    const px = (pt: [number, number]) => [...ctx.getImageData((pt[0] * 150) / 72, (pt[1] * 150) / 72, 1, 1).data];
+    // e4's centre is at 1 + 4.5 * 20 = 91pt; the circle's ring is 0.37 squares out.
+    return { frame: px([0.5, 0.5]), light: px([91 - 4, 91]), ring: px([91 + 20 * 0.405, 91]) };
+  }, png.toString("base64"));
+  expect(pixels.frame).toEqual([0, 0, 0, 255]);
+  expect(pixels.light).toEqual([255, 255, 255, 255]);
+  expect(pixels.ring).toEqual([0, 114, 178, 255]);
+});
+
 // --- Small screens ------------------------------------------------------------------------
 
 const SCREENS: [string, number, number][] = [

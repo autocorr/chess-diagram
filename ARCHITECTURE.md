@@ -571,7 +571,11 @@ as the CLI writes them.
     unwrap it), piece count and square size.
   - FEN field: validated as you type and normalised when you leave it.
   - URL hash state, so a link or a reload restores the diagram.
-  - SVG/PDF/TeX download.
+  - SVG/PDF/TeX download, plus PNG at 150, 300 or 600 dpi. PNG is editor-only: the
+    browser draws the SVG export onto a canvas sized from its pt dimensions, because
+    Pyodide has no rasteriser. Captions use the viewer's Helvetica or Arial, so PNGs
+    aren't byte-identical across machines; the test checks the size and sample pixels.
+    Images over 100 million pixels are refused.
 - **Pointer mapping:** client coordinates go through the SVG's screen CTM into font units,
   and then into a square using the board origin returned by `render`.
 - **Ordering:** UI actions run through one queue, so fast clicks can't race.

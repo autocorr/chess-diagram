@@ -74,7 +74,9 @@
 
       <h3>Export</h3>
       <p><b>SVG</b> and <b>PDF</b> download the diagram as shown. <b>TeX</b> downloads a snippet
-        to include with the <code>gcsnippet</code> LaTeX package.</p>
+        to include with the <code>gcsnippet</code> LaTeX package. <b>PNG</b> is drawn by the browser
+        from the SVG, at the chosen resolution (dpi, with the square size in points); its caption
+        uses the Helvetica or Arial on this computer.</p>
     </dialog>
     <main>
       <section id="board-pane">
@@ -199,6 +201,14 @@
             <button data-export="svg" type="button">SVG</button>
             <button data-export="pdf" type="button">PDF</button>
             <button data-export="tex" type="button">TeX</button>
+            <button data-export="png" type="button">PNG</button>
+            <label class="inline">at
+              <select id="png-dpi" data-testid="png-dpi" aria-label="PNG resolution">
+                <option value="150">150 dpi</option>
+                <option value="300" selected>300 dpi</option>
+                <option value="600">600 dpi</option>
+              </select>
+            </label>
           </div>
         </fieldset>
       </aside>

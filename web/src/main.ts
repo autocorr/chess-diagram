@@ -784,12 +784,21 @@ function wire(): void {
     button.addEventListener("click", () =>
       enqueue(async () => {
         const fmt = button.dataset.export!;
-        const result = await py.export(state.fen, state.options, fmt);
+        // PNG is drawn here from the SVG export; Python has no rasteriser in Pyodide.
+        const result = await py.export(state.fen, state.options, fmt === "png" ? "svg" : fmt);
         if (failed(result)) {
           setStatus(result.error, true);
           return;
         }
-        const blob = new Blob([result.data as BlobPart], { type: result.mime });
+        let blob = new Blob([result.data as BlobPart], { type: result.mime });
+        if (fmt === "png") {
+          try {
+            blob = await rasterize(result.data as string, Number($<HTMLSelectElement>("png-dpi").value));
+          } catch (e) {
+            setStatus(`PNG export failed: ${String(e)}`, true);
+            return;
+          }
+        }
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
         link.download = `diagram.${fmt}`;
@@ -798,6 +807,37 @@ function wire(): void {
         setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
       }),
     );
+  }
+}
+
+const MAX_PNG_PIXELS = 100_000_000; // well inside browsers' canvas limits
+
+/**
+ * Draw an exported SVG (sized in pt) onto a canvas at dpi pixels per inch and encode it
+ * as PNG. The SVG has its own background unless it is transparent.
+ */
+async function rasterize(svg: string, dpi: number): Promise<Blob> {
+  const root = new DOMParser().parseFromString(svg, "image/svg+xml").documentElement;
+  const points = (name: string) => parseFloat(root.getAttribute(name) ?? ""); // "123.4pt"
+  const width = Math.round((points("width") * dpi) / 72);
+  const height = Math.round((points("height") * dpi) / 72);
+  if (!(width > 0 && height > 0)) throw new Error("the SVG has no size");
+  if (width * height > MAX_PNG_PIXELS) throw new Error("too large; choose a lower resolution");
+
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  try {
+    const image = new Image(width, height);
+    image.src = url;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d")!.drawImage(image, 0, 0, width, height);
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("the browser could not encode it"))), "image/png"),
+    );
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
