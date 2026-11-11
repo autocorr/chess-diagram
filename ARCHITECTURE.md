@@ -23,24 +23,45 @@ There are two scope decisions:
 
 | File | Contents |
 |---|---|
-| `data/GC2004D_.TTF` | Empty squares, single border, pieces at 0/90/180/270°, chameleon pieces, neutral pieces at 0°, symbols (↔ → ✓), special markers (boxes, flowers, circles, diamonds, crosses, half-moons) |
-| `data/GC2004X_.TTF` | Pieces at 45/135/225/315°, neutral pieces at 90/180/270°, special markers (hourglass shapes, circles, stars) |
-| `data/GC2004Y_.TTF` | Empty squares, double border and corners, single left/right borders, 2- and 3-sided edge squares, arrows, extra special figures, rank labels 1–26 and file labels a–i in single and double styles |
+| `data/GC2004D_.TTF` | Empty squares, single border, pieces at 0/90/180/270°, chameleon (framed) Q R B N P, neutral pieces at 0°, symbols (↔ → ✓), special markers (box, flower, ring, diamond, cross, half-circle) |
+| `data/GC2004X_.TTF` | Pieces at 45/135/225/315°, neutral pieces at 90/180/270°, special markers (hourglass vertical and horizontal, circle, star) |
+| `data/GC2004Y_.TTF` | Double border and corners, 2- and 3-sided edge squares, arrows, mirrored knights at 90/180/270°, chameleon king, jester and moustache figures, rank labels 1–26 and file labels a–z in single and double styles |
 | `data/GC2004Q.pdf` | Quick reference showing the code and image for every glyph |
 
-Facts about the fonts:
+Facts about the fonts, verified in Phase 1:
 
-- All three are TrueType (`glyf`) fonts with 2000 units per em. Ascent is 1512 and
-  descent is 500.
-- Square glyphs advance 2000 units, so each board cell is 2000 × 2000 font units.
-  Border glyphs have narrower advances: 1504, 1506, 1744 and 1782.
-- Glyphs are addressed by **Windows-1252 code points** (0x20–0xFF).
+- All three are TrueType (`glyf`) fonts with 2000 units per em.
+- Every glyph advances 2000 units. A board square spans y = −500…1500 in font units, so
+  each cell is 2000 × 2000.
+- All codes used are in 0x21–0xFF, where Windows-1252 and Unicode agree, so
+  **code = Unicode code point** and fontspec can address glyphs with `\char`.
 - Each figure comes in a light-square and a dark-square version, and the hatching on dark
   squares is real outline geometry. A cell is therefore always exactly one glyph, chosen by
-  figure and square shade.
-- Coloured pieces come in groups of four codes. The order is assumed to be white on light,
-  white on dark, black on light, black on dark. This **must be verified** in Phase 1.
-  Neutral, chameleon and special glyphs follow their own patterns, recorded in the catalog.
+  figure and square shade. An empty light square is a blank glyph.
+- Coloured figures come in runs of four codes: **white on light, white on dark, black on
+  light, black on dark**. Neutral and colourless figures come in light/dark pairs.
+- Rotations are **clockwise**: a queen at 90° points its crown to the right.
+- The codes skip 0xAD (soft hyphen). Another code fills that slot, e.g. D 0xCB for the
+  90° white knight on a light square, and X 0xFF for the 225° black knight on a light
+  square. Code ranges therefore can't be assumed to be contiguous.
+- Border glyphs draw their line *outside* the board, in the neighbouring cell. Single
+  borders are 100 units thick. Double borders are a 50-unit line next to the board, a
+  100-unit gap, and a 200-unit line, 350 units in total. The double-border corners are
+  350-unit blocks.
+- The edge-square glyphs in GC2004Y draw their lines *inside* the cell and exist only for
+  light squares, so they're catalogued but not used for borders around holes.
+
+Quirks, which the catalog builder handles (see §4.1):
+
+- **The GC2004Y TTF is a later revision than the Y page of the PDF.** Its labels run a–z
+  and 1–26 at different codes. The TTF is authoritative, and the PDF is only used for
+  naming.
+- GC2004Y has tiny 15 × 15-unit "anchor" specks in the cell corners, presumably to fix
+  bounding boxes in word processors. They would show up as dots in vector output.
+- **D 0x37** (black king, 90°, dark square) is drawn 233 units to the right of its cell, a
+  defect in the shipped font.
+- Duplicates are skipped: D 0xAD/0xCC (copies of 0xCB), X 0xC3/0xC4 (copies of D's neutral
+  king), and Y 0x4F/0x50/0x55/0x56 (copies of D's squares and single borders).
 
 > **Licensing:** the reference PDF says the GC fonts are "used exclusively for diagrams on
 > www.StrateGems.org". Confirm redistribution rights before publishing the font files with
@@ -52,12 +73,14 @@ Facts about the fonts:
 ## 2. Overview
 
 ```
-            data/*.TTF  ──►  tools/build_catalog.py  (fontTools, build-time only)
+  tools/catalog_spec.py ─┐
+            data/*.TTF  ─┴─►  tools/build_catalog.py  (fontTools, build-time only)
                                      │
                     ┌────────────────┼──────────────────────┐
                     ▼                ▼                      ▼
-          catalog.json         catalog.lua           contact-sheet.pdf
-        (codes + outlines)   (codes for LuaTeX)     (manual verification)
+          catalog.json         catalog.lua           contact-sheet.svg
+        (codes + outlines)   (codes for LuaTeX)     (tools/contact_sheet.py,
+                                                     manual verification)
                     │                │
      ┌──────────────┼───────────┐    │
      ▼              ▼           ▼    ▼
@@ -85,7 +108,8 @@ Two parts are shared by every implementation:
 ```
 chess-diagram-generator/
 ├── ARCHITECTURE.md
-├── pyproject.toml                  # uv project; runtime deps: none; dev deps: fonttools, pytest
+├── pyproject.toml                  # uv project; runtime deps: none
+│                                   # dev deps: fonttools, pytest, ruff, ty
 ├── data/                           # original TTFs + reference PDF (inputs, never modified)
 ├── tools/
 │   ├── build_catalog.py            # TTF → catalog.json / catalog.lua
@@ -125,57 +149,78 @@ chess-diagram-generator/
 
 ### 4.1 Building it
 
-`tools/catalog_spec.py` is a hand-written table transcribed from `GC2004Q.pdf`. It maps
-semantic keys to `(font, code)`. `tools/build_catalog.py` then:
+`tools/catalog_spec.py` is a hand-written table that maps semantic keys to `(font, code)`.
+D and X are transcribed from `GC2004Q.pdf`, and Y from the TTF itself (see §1). The spec
+also lists `FIXUPS` (misplaced glyphs) and `IGNORED` (duplicate codes). Run
+`uv run python tools/build_catalog.py`, which:
 
-1. Opens each TTF with fontTools and looks up each code through the cmap. The cmap is
-   Unicode, but these fonts put the Windows-1252 code points into it directly.
-2. Extracts each glyph's outline as an SVG path string in font units, with the y axis
-   flipped to point downwards, plus its advance and bounding box.
-3. Removes duplicate outlines: identical paths are stored once and referenced by id.
-4. Writes `catalog.json` for Python and the web editor, and `gcdiagram-catalog.lua` for
-   LuaTeX. The Lua file holds codes and metrics only, no outlines, because TeX draws the
-   real font.
+1. Opens each TTF with fontTools and looks up each code through the cmap.
+2. Extracts each outline in **cell coordinates**: origin at the cell's top-left, y
+   pointing down, and a square spanning 0…2000 on both axes, so `y_cell = 1500 − y_font`.
+   Border, corner and label glyphs extend beyond 0…2000 and are placed in the cell next
+   to the board.
+3. Drops speck contours (no larger than 20 × 20 units) and applies the `FIXUPS` shifts.
+4. Removes duplicate outlines, storing identical paths once and referencing them by id.
+5. Writes `src/gcdiagram/data/catalog.json` (codes, outlines, bounding boxes) and
+   `latex/gcdiagram-catalog.lua` (codes and fix-ups only, because TeX draws the real font).
+6. Reports any non-blank code in the fonts that isn't in the catalog and isn't listed in
+   `IGNORED`.
 
-`tools/contact_sheet.py` renders every entry with its key, so the mapping can be checked
-against the reference PDF by eye. This is also how the four-code ordering gets confirmed.
+`tools/contact_sheet.py` renders every entry with its key and code to
+`build/contact-sheet.svg`, for checking against the reference PDF by eye. Phase 1 did this
+for every group. `tests/test_catalog.py` checks completeness, the key format, uniqueness of
+codes, the cell bounds, that `catalog.json` is up to date with the spec and fonts, and that
+the Lua copy matches.
 
 ### 4.2 Key scheme
 
 ```
-piece:<kind>:<color>:<angle>:<shade>      kind  ∈ K Q R B N P
-                                          color ∈ white black neutral
-                                          angle ∈ 0 45 90 … 315
-                                          shade ∈ light dark
-chameleon:<kind>:<color>:<shade>          kind ∈ Q R B N P (no king; 0° only)
-special:<name>:<shade>                    e.g. special:circle-white:dark, special:star-black:light
-square:<shade>                            empty square (from D; Y has an alternate)
-border:<style>:<side>                     style ∈ single double; side ∈ top bottom left right
-corner:<style>:<pos>                      pos ∈ tl tr bl br (double only)
-edge:<sides>                              Y 2- and 3-sided edge squares, e.g. edge:top-left
-symbol:<name>                             ↔ → ✓ and the Y arrows (↑ ← ↓ ↱ ∩ ↻)
-label:<style>:<rank|file>:<value>         Y rank and file labels
+piece:<kind>:<color>:<angle>:<variant>:<shade>
+    kind ∈ K Q R B N P; color ∈ white black neutral; angle ∈ 0 45 … 315;
+    variant ∈ plain chameleon mirror; shade ∈ light dark
+special:<name>:<color>:<shade>   color ∈ white black neutral none
+square:<shade>                   empty square
+border:<style>:<side>            style ∈ single double; side ∈ top bottom left right
+corner:double:<pos>              pos ∈ tl tr bl br
+edge:<sides>                     e.g. edge:top-left, edge:top-bottom-right (light only)
+symbol:<name>                    arrow-both arrow-right check (D); arrow-up arrow-left
+                                 arrow-down arrow-turn arrow-uturn arrow-loop (Y)
+label:<style>:<axis>:<value>     axis ∈ rank (1–26) file (a–z); includes the border line
 ```
 
-Special figures get stable, descriptive names: `box`, `box-hatched`, `flower-…`,
-`circle-…`, `diamond-…`, `cross`, `half-moon-…`, `hourglass-…`, `star-…`, plus names for
-the extra figures in GC2004Y. The catalog lists every valid name.
+What the fonts cover (all with light and dark versions):
+
+| Set | Colours | Angles |
+|---|---|---|
+| plain K Q R B N P | white, black | all 8 |
+| plain K Q R B N P | neutral | 0, 90, 180, 270 |
+| chameleon K Q R B N P | white, black | 0 |
+| mirror N | white, black | 90, 180, 270 (the rotated knight reflected left–right) |
+
+| Special | Colours |
+|---|---|
+| `flower`, `diamond`, `ring`, `circle`, `star`, `jester`, `moustache` | white, black |
+| `hourglass`, `hourglass-h` (horizontal) | white, black, neutral |
+| `half-circle` | neutral |
+| `box`, `cross` | none |
 
 ### 4.3 JSON shape
 
 ```json
 {
-  "version": 1,
-  "unitsPerEm": 2000,
-  "cell": 2000,
+  "version": 1, "unitsPerEm": 2000, "cell": 2000, "baseline": 1500,
   "fonts": {"D": "GC2004D_.TTF", "X": "GC2004X_.TTF", "Y": "GC2004Y_.TTF"},
-  "outlines": {"o17": "M0 0L2000 0…Z"},
+  "outlines": {"o17": "M1190 554V257L1044 405Z…"},
   "glyphs": {
-    "piece:Q:white:90:dark": {"font": "D", "code": 78, "advance": 2000, "outline": "o17"},
-    "square:light":          {"font": "D", "code": 163, "advance": 2000, "outline": "o1"}
+    "piece:Q:white:90:plain:dark": {"font": "D", "code": 78, "outline": "o17", "bbox": [x0, y0, x1, y1]},
+    "piece:K:black:90:plain:dark": {"font": "D", "code": 55, "outline": "o9", "bbox": […], "dx": -233}
   }
 }
 ```
+
+`dx`, where present, is a horizontal correction already applied to the outline. A
+typesetter using the real font must kern by `dx` font units before the glyph and by `−dx`
+after it.
 
 ---
 
@@ -191,9 +236,10 @@ item     := empty | piece | token | hole | wall
 empty    := [1-9][0-9]*                       run of empty squares; multi-digit allowed
 piece    := [KQRBNPkqrbnp]                    uppercase = white, lowercase = black
 token    := "{" mod? letter angle? "}"
-          | "{@" name "}"                     special figure on a square
-mod      := "=" (neutral) | "~" (chameleon)
+          | "{" "="? "@" name "}"             special figure on a square
+mod      := "=" (neutral) | "~" (chameleon) | "!" (mirrored)
 letter   := [KQRBNPkqrbnp]
+name     := [A-Za-z][a-z-]*                   catalog special name; case of 1st letter = colour
 angle    := "0" | "45" | "90" | "135" | "180" | "225" | "270" | "315"   (default 0)
 hole     := "."                               no square: nothing drawn, border goes around it
 wall     := "*"                               a blocked square: present but unusable, drawn solid
@@ -204,15 +250,18 @@ Examples:
 ```
 rnb{q180}kbnr/pppp.ppp/8/8/8/8/PPPPPPPP/{R90}NBQKBN{R270}
 10/{=Q}9/…                     10-file board with a neutral queen
-4{~b}3/8/…/{@star}7            chameleon black bishop, star marker
+4{~b}3/8/…/{@Star}7            chameleon black bishop, white star
+{!n180}7/…                     mirrored black knight at 180°
 ```
 
 ### 5.2 Rules
 
 - Every rank must be the same width. The board can be any size from 1×1 to 26×26. The
   limit of 26 matches the rank labels in GC2004Y and can be lifted.
-- Letter case gives the colour of `{~x}` and `{@name}` figures. For neutral `{=x}` pieces
-  the case is ignored.
+- Letter case gives the colour of `{~x}`, `{!x}` and `{@Name}` figures. For neutral
+  `{=x}` and `{=@name}` the case is ignored. A special that exists in only one colour
+  (`box`, `cross`, `half-circle`) accepts either case.
+- Mirroring is applied after rotation: `{!N90}` is the 90° knight reflected left–right.
 - A figure/angle combination the font doesn't contain is a **parse error with a clear
   message**. Checking happens against the catalog, so the grammar stays simple.
 - Serialising is canonical: standard pieces at 0° are written as bare letters, empty runs
@@ -303,8 +352,9 @@ glyph borders pixel for pixel and don't depend on stroke-join settings.
 ### 8.3 TeX snippet (`render/tex.py`), LaTeX route A
 
 - Outputs `\gcboard{…}`: one row of glyph codes per rank, each tagged with its font, e.g.
-  `\gcD{\char"4E}`. Walls are drawn as `\rule`. Hole borders and arrows are drawn with a
-  TikZ overlay that uses coordinates computed in Python.
+  `\gcD{\char"4E}`. Glyphs with a catalog `dx` are wrapped in compensating kerns. Walls
+  are drawn as `\rule`. Hole borders and arrows are drawn with a TikZ overlay that uses
+  coordinates computed in Python.
 - `latex/gcsnippet.sty` loads the three fonts, sets cell width and line spacing to exactly
   one cell, and provides the caption macro.
 - Works with LuaLaTeX and XeLaTeX through `fontspec`. pdfLaTeX would need Type 1
@@ -381,8 +431,8 @@ from that. The comparison also has a baseline: 100 standalone PDFs included with
 
 ## 12. Implementation phases
 
-1. **Catalog:** write `catalog_spec.py` from the reference PDF, build `catalog.json` and
-   `.lua`, produce the contact sheet, and confirm the code ordering.
+1. **Catalog** (done): write `catalog_spec.py`, build `catalog.json` and `.lua`, produce
+   the contact sheet, confirm the code ordering, and add catalog tests.
 2. **Python core:** `fen.py`, `board.py`, `geometry.py`, SVG and PDF renderers, the CLI,
    the shared vectors and pytest.
 3. **LaTeX:** route A (snippets and `gcsnippet.sty`), route B (LuaLaTeX package), and the
@@ -391,10 +441,10 @@ from that. The comparison also has a baseline: 100 standalone PDFs included with
 
 ## 13. Open questions
 
-- Should a wall be a solid black square, or a distinct glyph such as the hatched box in
-  GC2004D (`special:box-hatched`)?
-- Which naming convention to use for special figures, especially the GC2004Y figures,
-  whose fairy meanings aren't labelled in the reference PDF.
+- Should a wall be a solid black square, or the framed `special:box:none` glyph?
+- The special names (§4.2) are descriptive because the reference PDF doesn't give their
+  fairy meanings, e.g. `jester` and `moustache` for GC2004Y 0x43–0x4A. Rename them if
+  there are established names.
 - Coordinates (rank and file labels) are out of scope for v1, but the catalog includes the
   label glyphs so they can be added later.
 - Font redistribution rights (see §1).
