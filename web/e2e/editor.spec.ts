@@ -100,11 +100,21 @@ test("dark mode follows the system until switched, and the switch is remembered"
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   const dark = await background();
-  // The board stays black on white, as exported.
-  expect(await page.evaluate(() => getComputedStyle(document.getElementById("board")!).backgroundColor)).toBe(
-    "rgb(255, 255, 255)",
-  );
+  // The board and palette icons are dimmed on screen...
+  const look = () =>
+    page.evaluate(() => ({
+      paper: getComputedStyle(document.getElementById("board")!).backgroundColor,
+      board: getComputedStyle(document.querySelector("#board svg")!).filter,
+      icon: getComputedStyle(document.querySelector("#pieces button svg")!).filter,
+    }));
+  expect(await look()).toEqual({ paper: "rgb(214, 214, 214)", board: "brightness(0.84)", icon: "brightness(0.84)" });
+  // ...but exports are still exactly what the CLI writes.
+  const download = page.waitForEvent("download");
+  await page.locator('[data-export="svg"]').click();
+  const exported = readFileSync((await (await download).path())!);
+  expect(exported.equals(execFileSync("uv", ["run", "gcdiagram", START, "-f", "svg"], { cwd: REPO }))).toBe(true);
   await toggle.click();
+  expect(await look()).toEqual({ paper: "rgb(255, 255, 255)", board: "none", icon: "none" });
   await expect(html).toHaveAttribute("data-theme", "light");
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   expect(await background()).not.toBe(dark);

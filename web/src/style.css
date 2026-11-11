@@ -8,8 +8,9 @@
   --error: #b3261e;
   --hover: rgba(47, 95, 179, 0.28);
   --selected: rgba(47, 95, 179, 0.08);
-  /* The board and palette glyphs are black ink, as in the exported diagram, so they
-     stay on white paper in both themes. */
+  /* The board and palette glyphs are black ink on white paper, as in the exported
+     diagram. Dark mode dims the paper (below) so it doesn't glare; exports, which
+     Python renders separately, are unaffected. */
   --paper: #fff;
   color-scheme: light;
   font: 14px/1.4 system-ui, sans-serif;
@@ -25,7 +26,14 @@
   --error: #f28b82;
   --hover: rgba(47, 95, 179, 0.32);
   --selected: rgba(130, 167, 240, 0.16);
+  --paper: #d6d6d6; /* white at the glyphs' brightness below (255 x 0.84 = 214) */
   color-scheme: dark;
+}
+
+/* Dim the white of the board and palette glyphs to match the paper; black stays black. */
+:root[data-theme="dark"] #board svg,
+:root[data-theme="dark"] .glyphs button svg {
+  filter: brightness(0.84);
 }
 
 * {

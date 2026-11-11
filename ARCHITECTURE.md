@@ -534,7 +534,9 @@ as the CLI writes them.
   - Help: a modal dialog from the header link.
   - Dark mode: a switch in the header. Until it is used the page follows the system
     setting; a choice is saved in `localStorage`, and a script in `index.html` applies it
-    before the first paint. The board and palette glyphs stay on white, as exported.
+    before the first paint. The board and palette glyphs are dimmed with a CSS
+    `brightness()` filter so their white doesn't glare; this is display-only, and exports
+    (rendered by Python) are unchanged, which a test checks against the CLI.
   - Board size, border, wall style, caption, piece count and square size.
   - FEN field: validated as you type and normalised when you leave it.
   - URL hash state, so a link or a reload restores the diagram.
