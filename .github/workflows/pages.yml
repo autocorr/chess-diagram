@@ -1,0 +1,63 @@
+# Build the browser editor (web/) and publish it on GitHub Pages.
+#
+# The editor runs the gcdiagram Python package in Pyodide, so the site is entirely
+# static: `npm run build` bundles the UI, the Pyodide runtime and a snapshot of
+# src/gcdiagram into web/dist/. No Python is needed to build it.
+#
+# One-time setup: in the repository's Settings → Pages, set "Source" to "GitHub Actions".
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; don't cancel one that is already running.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - run: npm ci
+
+      # A project site lives under /<repository>/, so build with that base path (the
+      # editor loads Pyodide and the Python sources relative to it). base_path is empty
+      # for a user or organisation site, giving "/".
+      - run: npm run build -- --base "${{ steps.pages.outputs.base_path }}/"
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

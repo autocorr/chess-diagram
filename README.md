@@ -106,6 +106,11 @@ SVG/PDF/TeX exports are identical to the CLI's. Edits to `src/gcdiagram/*.py` re
 page. `npm run test:e2e` runs the Playwright tests; the first time, run
 `npx playwright install chromium`.
 
+`npm run build` writes a static site to `web/dist/` (about 14 MB, mostly the Pyodide
+runtime) that any web server can host. `.github/workflows/pages.yml` builds it and
+publishes it on GitHub Pages on every push to `main`; to turn it on, set **Settings →
+Pages → Source** to **GitHub Actions**.
+
 ## Development
 
 ```sh
