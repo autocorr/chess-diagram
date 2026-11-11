@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, get_args
 
 BorderStyle = Literal["single", "double", "outline", "none"]
 WallStyle = Literal["solid", "box"]
@@ -38,3 +38,19 @@ class RenderOptions:
     caption_size: float = 0.45  # caption font size relative to the square size
     arrow_color: str = "#000"
     arrow_opacity: float = 0.6
+
+    def __post_init__(self) -> None:
+        if self.border not in get_args(BorderStyle):
+            raise ValueError(f"border must be one of {get_args(BorderStyle)}, not {self.border!r}")
+        if self.wall not in get_args(WallStyle):
+            raise ValueError(f"wall must be one of {get_args(WallStyle)}, not {self.wall!r}")
+        if isinstance(self.caption, str) or isinstance(self.arrows, str):
+            raise TypeError("caption and arrows are sequences of strings, not one string")
+        if not self.square_size > 0:
+            raise ValueError(f"square_size must be positive, not {self.square_size}")
+        if not self.caption_size > 0:
+            raise ValueError(f"caption_size must be positive, not {self.caption_size}")
+        if not self.padding >= 0:
+            raise ValueError(f"padding cannot be negative, not {self.padding}")
+        if not 0 <= self.arrow_opacity <= 1:
+            raise ValueError(f"arrow_opacity must be between 0 and 1, not {self.arrow_opacity}")

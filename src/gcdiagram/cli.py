@@ -69,17 +69,17 @@ def main(argv: list[str] | None = None) -> int:
     if fmt not in FORMATS:
         parser.error(f"cannot infer format from {args.output}; use --format")
 
-    opts = RenderOptions(
-        square_size=args.square_size,
-        border=args.border,
-        caption=args.caption,
-        piece_count=args.count,
-        arrows=args.arrow,
-        wall=args.wall,
-        padding=args.padding,
-        background=None if args.transparent else "#fff",
-    )
     try:
+        opts = RenderOptions(
+            square_size=args.square_size,
+            border=args.border,
+            caption=args.caption,
+            piece_count=args.count,
+            arrows=args.arrow,
+            wall=args.wall,
+            padding=args.padding,
+            background=None if args.transparent else "#fff",
+        )
         if fmt == "pdf":
             data = render_pdf(board, opts)
         elif fmt == "tex":

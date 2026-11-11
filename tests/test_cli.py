@@ -61,3 +61,8 @@ def test_tex_output(tmp_path: Path) -> None:
     out = tmp_path / "d.tex"
     assert main(["K", "-o", str(out), "-c", "#2"]) == 0
     assert out.read_text().startswith(r"\gcbox{")
+
+
+def test_bad_square_size_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["K", "-s", "0"]) == 2
+    assert "square_size must be positive" in capsys.readouterr().err
