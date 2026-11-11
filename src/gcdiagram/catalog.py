@@ -11,7 +11,7 @@ from functools import cache
 from importlib import resources
 from typing import cast
 
-from .board import Figure, Piece, Shade, Special, SpecialColor
+from .board import Cell, Figure, Piece, Shade, Special, SpecialColor, Square, Wall
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,8 +61,15 @@ class Catalog:
         except KeyError:
             raise KeyError(f"the GC fonts have no glyph for {figure}") from None
 
-    def square_glyph(self, shade: Shade) -> Glyph:
-        return self.glyphs[f"square:{shade}"]
+    def cell_glyph(self, cell: Cell, shade: Shade, wall: str = "solid") -> Glyph | None:
+        """The glyph drawn for a cell, or None for holes and solid walls (drawn as rects)."""
+        if isinstance(cell, Square):
+            if cell.figure is not None:
+                return self.figure_glyph(cell.figure, shade)
+            return self.glyphs[f"square:{shade}"]
+        if isinstance(cell, Wall) and wall == "box":
+            return self.glyphs[f"special:box:none:{shade}"]
+        return None
 
 
 def figure_key(figure: Figure, shade: Shade) -> str:

@@ -14,8 +14,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from ..board import Board, Hole, Square, Wall
-from ..catalog import Catalog, Glyph, figure_key, load_catalog
+from ..board import Board
+from ..catalog import Catalog, Glyph, load_catalog
 from ..fen import parse
 from ..geometry import U, layout
 from ..options import RenderOptions
@@ -54,16 +54,8 @@ def num(units: float) -> str:
 
 
 def _cell_glyph(board: Board, r: int, c: int, opts: RenderOptions, cat: Catalog) -> Glyph:
-    cell = board.cells[r][c]
-    shade = board.shade(r, c)
-    if isinstance(cell, Square) and cell.figure is not None:
-        return cat[figure_key(cell.figure, shade)]
-    if isinstance(cell, Square):
-        return cat[f"square:{shade}"]
-    if isinstance(cell, Wall) and opts.wall == "box":
-        return cat[f"special:box:none:{shade}"]
-    assert isinstance(cell, (Hole, Wall))
-    return cat["square:light"]  # a blank glyph that just advances one square
+    glyph = cat.cell_glyph(board.cells[r][c], board.shade(r, c), opts.wall)
+    return glyph or cat["square:light"]  # a blank glyph that just advances one square
 
 
 def _rank(board: Board, r: int, opts: RenderOptions, cat: Catalog) -> str:

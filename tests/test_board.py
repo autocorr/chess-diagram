@@ -86,3 +86,13 @@ def test_catalog_resolves_figures() -> None:
     assert cat.specials["box"] == {"none"}
     with pytest.raises(KeyError, match="no glyph"):
         cat.figure_glyph(Special("nope", "white"), "light")
+
+
+def test_catalog_resolves_cells() -> None:
+    cat = load_catalog()
+    queen = Piece("Q", "white", 90)
+    assert cat.cell_glyph(Square(queen), "dark") == cat.figure_glyph(queen, "dark")
+    assert cat.cell_glyph(EMPTY, "light") == cat["square:light"]
+    assert cat.cell_glyph(HOLE, "dark") is None
+    assert cat.cell_glyph(WALL, "dark") is None
+    assert cat.cell_glyph(WALL, "dark", "box") == cat["special:box:none:dark"]

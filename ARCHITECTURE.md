@@ -310,8 +310,9 @@ Cell = Square | Hole | Wall
 ```
 
 The model knows nothing about rendering. The only connection between the model and the
-fonts is `Catalog.figure_glyph(figure, shade)` in `catalog.py`, along with
-`Catalog.supports(figure)`, which the parser uses for validation.
+fonts is `Catalog.figure_glyph(figure, shade)` in `catalog.py` (and
+`Catalog.cell_glyph(cell, shade, wall)`, which every renderer uses to pick a cell's glyph),
+along with `Catalog.supports(figure)`, which the parser uses for validation.
 
 ---
 

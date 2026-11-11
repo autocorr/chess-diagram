@@ -25,7 +25,7 @@ from .board import (
     Variant,
     Wall,
 )
-from .catalog import figure_key, load_catalog
+from .catalog import load_catalog
 from .fen import FenError, figure_token, parse, serialize
 from .geometry import layout
 from .options import RenderOptions
@@ -200,9 +200,7 @@ def figure_svg(token: str, shade: str = "light") -> str:
     sh: Shade = "light" if shade == "light" else "dark"
     cell = _cell(token)
     cat = load_catalog()
-    if isinstance(cell, Square) and cell.figure is not None:
-        key = figure_key(cell.figure, sh)
-    else:
-        key = f"square:{sh}"
-    d = svgpath.to_svg(svgpath.parse(cat.outlines[cat[key].outline]))
+    glyph = cat.cell_glyph(cell if isinstance(cell, Square) else EMPTY, sh)
+    assert glyph is not None
+    d = svgpath.to_svg(svgpath.parse(cat.outlines[glyph.outline]))
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 2000"><path d="{d}"/></svg>'

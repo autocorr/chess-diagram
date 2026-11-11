@@ -11,8 +11,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-from .board import Board, Hole, Square, Wall, parse_square
-from .catalog import Catalog, figure_key, load_catalog
+from .board import Board, Hole, Wall, parse_square
+from .catalog import Catalog, load_catalog
 from .options import RenderOptions
 from .textmetrics import text_width
 
@@ -105,17 +105,12 @@ def layout(
     for r, row in enumerate(board.cells):
         for c, cell in enumerate(row):
             x, y = bx + c * U, by + r * U
-            shade = board.shade(r, c)
-            if isinstance(cell, Square):
-                key = figure_key(cell.figure, shade) if cell.figure else f"square:{shade}"
-                if cat[key].bbox is not None:  # the empty light square is blank
-                    out.glyphs.append(GlyphUse(key, x, y, board.square_name(r, c)))
-            elif isinstance(cell, Wall):
-                if opts.wall == "box":
-                    key = f"special:box:none:{shade}"
-                    out.glyphs.append(GlyphUse(key, x, y, board.square_name(r, c)))
-                else:
+            glyph = cat.cell_glyph(cell, board.shade(r, c), opts.wall)
+            if glyph is None:
+                if isinstance(cell, Wall):
                     out.rects.append((x, y, U, U))
+            elif glyph.bbox is not None:  # the empty light square is blank
+                out.glyphs.append(GlyphUse(glyph.key, x, y, board.square_name(r, c)))
 
     out.rects.extend(border_rects(board, opts.border, bx, by))
     out.arrows.extend(arrow_polygon(board, spec, bx, by) for spec in opts.arrows)
