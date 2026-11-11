@@ -12,6 +12,7 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tools"]
 
 [dependency-groups]
 dev = [
@@ -26,3 +27,6 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ty.environment]
+extra-paths = ["tools"]
