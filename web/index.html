@@ -85,26 +85,6 @@
       </section>
 
       <aside>
-        <fieldset>
-          <legend>FEN</legend>
-          <div class="row">
-            <input id="fen" data-testid="fen" spellcheck="false" autocomplete="off" aria-label="Extended FEN" />
-            <button id="copy-fen" type="button">Copy</button>
-          </div>
-          <p id="fen-error" data-testid="fen-error" class="error" role="alert"></p>
-        </fieldset>
-
-        <fieldset>
-          <legend>Tool</legend>
-          <div class="segmented" id="tools">
-            <label><input type="radio" name="tool" value="place" checked />Place</label>
-            <label><input type="radio" name="tool" value="erase" />Erase</label>
-            <label><input type="radio" name="tool" value="hole" />Hole</label>
-            <label><input type="radio" name="tool" value="wall" />Wall</label>
-            <label><input type="radio" name="tool" value="arrow" />Arrow</label>
-          </div>
-        </fieldset>
-
         <fieldset id="palette">
           <legend>Figure</legend>
           <div id="pieces" class="glyphs" aria-label="Pieces"></div>
@@ -124,6 +104,17 @@
         </fieldset>
 
         <fieldset>
+          <legend>Tool</legend>
+          <div class="segmented" id="tools">
+            <label><input type="radio" name="tool" value="place" checked />Place</label>
+            <label><input type="radio" name="tool" value="erase" />Erase</label>
+            <label><input type="radio" name="tool" value="hole" />Hole</label>
+            <label><input type="radio" name="tool" value="wall" />Wall</label>
+            <label><input type="radio" name="tool" value="arrow" />Arrow</label>
+          </div>
+        </fieldset>
+
+        <fieldset>
           <legend>Board</legend>
           <div class="row">
             <label>Files <input id="files" data-testid="files" type="number" min="1" max="26" /></label>
@@ -133,6 +124,15 @@
             <button id="start" type="button">Start position</button>
             <button id="clear" type="button">Clear</button>
           </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>FEN</legend>
+          <div class="row">
+            <input id="fen" data-testid="fen" spellcheck="false" autocomplete="off" aria-label="Extended FEN" />
+            <button id="copy-fen" type="button">Copy</button>
+          </div>
+          <p id="fen-error" data-testid="fen-error" class="error" role="alert"></p>
         </fieldset>
 
         <fieldset>
