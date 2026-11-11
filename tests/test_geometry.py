@@ -3,7 +3,16 @@ from __future__ import annotations
 import pytest
 
 from gcdiagram.fen import parse
-from gcdiagram.geometry import LINE_HEIGHT, SINGLE, Layout, U, border_rects, layout, parse_arrow
+from gcdiagram.geometry import (
+    LINE_HEIGHT,
+    SINGLE,
+    Layout,
+    U,
+    border_rects,
+    layout,
+    parse_arrow,
+    wall_outline_rects,
+)
 from gcdiagram.options import RenderOptions
 from gcdiagram.textmetrics import text_width
 
@@ -73,9 +82,30 @@ def test_glyph_uses_know_their_square() -> None:
 
 
 def test_walls() -> None:
-    assert len(layout(parse("*")).rects) == 5  # wall + 4 frame sides
+    lay = layout(parse("*"))
+    assert lay.wall_fills == [(100, 100, U, U)]
+    assert len(lay.rects) == 4  # the frame outlines the wall
     lay = layout(parse("*"), RenderOptions(wall="box"))
     assert lay.glyphs[0].key == "special:box:none:dark"
+    assert lay.wall_fills == []
+
+
+def test_solid_walls_are_outlined_where_they_meet_squares() -> None:
+    t = SINGLE
+    # Lines run inside the wall, only on the sides next to squares.
+    assert wall_outline_rects(parse("1*1"), "single", 0, 0) == [(U, 0, t, U), (2 * U - t, 0, t, U)]
+    # Adjacent walls share one outline, and the concave corner next to b2 is filled.
+    assert set(wall_outline_rects(parse("*1/**"), "single", 0, 0)) == {
+        (U - t, U, U + t, t),  # b1's top, merged with a1's corner
+        (U - t, 0, t, U),  # a2's right
+    }
+    # Without a border, nothing else draws the wall's edges.
+    assert set(wall_outline_rects(parse("*"), "none", 0, 0)) == {
+        (0, 0, U, t),
+        (0, U - t, U, t),
+        (0, 0, t, U),
+        (U - t, 0, t, U),
+    }
 
 
 def test_caption_left_and_piece_count_right() -> None:

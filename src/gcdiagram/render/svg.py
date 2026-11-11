@@ -7,7 +7,7 @@ from string import ascii_lowercase
 
 from ..board import Board
 from ..catalog import Catalog
-from ..geometry import Layout, Text, U, layout
+from ..geometry import WALL_FILL, Layout, Rect, Text, U, layout
 from ..options import RenderOptions
 from ..svgpath import fmt, svg_path, to_svg
 from . import prepare
@@ -80,9 +80,13 @@ def _document(
             attrs += f' data-square="{use.square}"'
         parts.append(f"<use {attrs}/>")
 
+    def rects(rs: list[Rect]) -> str:
+        return "".join(f"M{fmt(x)} {fmt(y)}h{fmt(w)}v{fmt(h)}h{fmt(-w)}z" for x, y, w, h in rs)
+
+    if lay.wall_fills:
+        parts.append(f'<path d="{rects(lay.wall_fills)}" fill="{WALL_FILL}"/>')
     if lay.rects:
-        d = "".join(f"M{fmt(x)} {fmt(y)}h{fmt(w)}v{fmt(h)}h{fmt(-w)}z" for x, y, w, h in lay.rects)
-        parts.append(f'<path d="{d}"/>')
+        parts.append(f'<path d="{rects(lay.rects)}"/>')
 
     if lay.arrows:
         d = "".join(

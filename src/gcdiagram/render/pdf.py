@@ -13,7 +13,7 @@ import zlib
 
 from ..board import Board
 from ..catalog import Catalog
-from ..geometry import Layout, U, layout
+from ..geometry import WALL_FILL, Layout, U, layout
 from ..options import RenderOptions
 from ..svgpath import fmt, pdf_path, to_pdf
 from ..textmetrics import text_width
@@ -126,6 +126,10 @@ def _document(lay: Layout, opts: RenderOptions, cat: Catalog) -> bytes:
             xobjects.append(f"/{name} {num} 0 R")
         ops.append(f"q 1 0 0 1 {fmt(use.x)} {fmt(use.y)} cm/{forms[g.outline]} Do Q")
 
+    if lay.wall_fills:
+        ops.append(_rgb(WALL_FILL, "rg"))
+        ops += [f"{fmt(x)} {fmt(y)} {fmt(rw)} {fmt(rh)} re" for x, y, rw, rh in lay.wall_fills]
+        ops += ["f", "0 g"]
     if lay.rects:
         ops += [f"{fmt(x)} {fmt(y)} {fmt(rw)} {fmt(rh)} re" for x, y, rw, rh in lay.rects]
         ops.append("f")

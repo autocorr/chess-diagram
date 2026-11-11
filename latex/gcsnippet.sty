@@ -63,6 +63,14 @@
   \pgfpathrectangle{\pgfqpoint{#1\gcsquare}{#2\gcsquare}}{\pgfqpoint{#3\gcsquare}{#4\gcsquare}}}
 \def\gcrects#1{#1\pgfusepath{fill}}
 
+% Rectangles in a color (solid walls' interiors): \gcfills{RRGGBB}{\gcr{x}{y}{w}{h}...}
+\def\gcfills#1#2{%
+  \begin{pgfscope}%
+    \definecolor{gc@fill}{HTML}{#1}%
+    \pgfsetfillcolor{gc@fill}%
+    #2\pgfusepath{fill}%
+  \end{pgfscope}}
+
 % Filled polygons (arrows): \gcarrows{RRGGBB}{opacity}{\gcm{x}{y}\gcl{x}{y}...\gcz...}
 \def\gcm#1#2{\pgfpathmoveto{\pgfqpoint{#1\gcsquare}{#2\gcsquare}}}
 \def\gcl#1#2{\pgfpathlineto{\pgfqpoint{#1\gcsquare}{#2\gcsquare}}}

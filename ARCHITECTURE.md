@@ -247,7 +247,7 @@ letter   := [KQRBNPkqrbnp]
 name     := [A-Za-z][a-z-]*                   catalog special name; case of 1st letter = color
 angle    := "0" | "45" | "90" | "135" | "180" | "225" | "270" | "315"   (default 0)
 hole     := "."                               no square: nothing drawn, border goes around it
-wall     := "*"                               a blocked square: present but unusable, drawn solid
+wall     := "*"                               a blocked square: present but unusable, drawn filled
 ```
 
 Examples:
@@ -320,8 +320,15 @@ is 2000, y points down) and is scaled at output time. A `Layout` contains:
 
 - **`glyphs`:** `GlyphUse(key, x, y, square)` for every non-blank cell. Empty light squares
   are blank glyphs and are skipped.
-- **`rects`:** filled rectangles for borders and solid walls. With `wall="box"`, a wall
-  is drawn with the framed `special:box:none` glyph instead.
+- **`wall_fills`:** one square per solid wall, filled 40% gray (`WALL_FILL`, `#666666`) and
+  drawn before `rects`. With `wall="box"`, a wall is drawn with the framed
+  `special:box:none` glyph instead.
+- **`rects`:** black filled rectangles for borders and the outlines of solid walls. A
+  wall's outline is a `SINGLE`-thick line inside the wall on each side that meets a
+  square, plus a corner square at concave corners. Sides at the frame or a hole already
+  have a line just outside them, and sides between walls get none, so a group of walls
+  has one outline, like a group of holes. With `border="none"` the wall outlines every
+  side that doesn't meet another wall.
 - **`arrows`:** 7-point polygons from the center of the start square to the tip at the
   center of the target square.
 - **`marks`:** annotations (`annotations.py`), each a filled path with a fill color and
@@ -406,7 +413,8 @@ in `latex/gcsnippet.sty`:
 \gcbox{6.1}{6.1}{%                                  width, height (in squares)
 \gcrank{.05}{5.3}{\gcD{£££¤££}}%                    one glyph run per rank, at its baseline
 \gcrank{.05}{4.3}{\gcD{£0¤£¤£}\gcY{0}}%             a run per font
-\gcrects{\gcr{1.05}{3.05}{1}{1}\gcr{0}{6.05}{6.1}{.05}…}%   borders and walls
+\gcfills{666666}{\gcr{1.05}{3.05}{1}{1}…}%           solid walls' gray interiors
+\gcrects{\gcr{1.05}{3.05}{.05}{1}\gcr{0}{6.05}{6.1}{.05}…}%  borders and wall outlines
 \gcarrows{000000}{0.6}{\gcm{x}{y}\gcl{x}{y}…\gcz}%  arrows (color, opacity, polygons)
 \gcmark{D55E00}{0}{\gcm{x}{y}\gcq{cx}{cy}{x}{y}…\gcz}%  one annotation (color, halo, path)
 }{\#2}{(3+2)}%                                       caption lines (\\-separated), count
@@ -640,11 +648,9 @@ pre-rendered SVGs) would be the lighter option.
 
 ## 13. Open questions
 
-- Should a wall be a solid black square, or the framed `special:box:none` glyph?
 - The special names (§4.2) are mostly descriptive because the reference PDF doesn't give
   their fairy meanings. Rename them if there are established names. (`equihopper` and
   `jester` are established; the fonts' rotated copies of them, GC2004X 0xEB–0xEE,
   0xF3–0xF4 and GC2004Y 0x47–0x4A, are deliberately left out of the catalog.)
 - Coordinates (rank and file labels) are out of scope for v1, but the catalog includes the
   label glyphs so they can be added later.
-- Font redistribution rights (see §1).

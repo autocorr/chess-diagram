@@ -16,7 +16,7 @@ from dataclasses import replace
 
 from ..board import Board
 from ..catalog import Catalog, Glyph
-from ..geometry import U, layout
+from ..geometry import WALL_FILL, Rect, U, layout
 from ..markup import parse_markup
 from ..options import RenderOptions
 from ..svgpath import Segment, fmt
@@ -97,12 +97,17 @@ def tex_parts(
         lines.append(
             rf"\gcrank{{{num(lay.board_x)}}}{{{num(baseline)}}}{{{_rank(board, r, opts, cat)}}}%"
         )
-    if lay.rects:
-        rects = "".join(
+
+    def rects(rs: list[Rect]) -> str:
+        return "".join(
             rf"\gcr{{{num(x)}}}{{{num(height - y - h)}}}{{{num(w)}}}{{{num(h)}}}"
-            for x, y, w, h in lay.rects
+            for x, y, w, h in rs
         )
-        lines.append(rf"\gcrects{{{rects}}}%")
+
+    if lay.wall_fills:
+        lines.append(rf"\gcfills{{{WALL_FILL[1:].upper()}}}{{{rects(lay.wall_fills)}}}%")
+    if lay.rects:
+        lines.append(rf"\gcrects{{{rects(lay.rects)}}}%")
     if lay.arrows:
         paths = "".join(
             rf"\gcm{{{num(pts[0][0])}}}{{{num(height - pts[0][1])}}}"

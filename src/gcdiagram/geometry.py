@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from .annotations import FILL, Annotation, parse_annotation
-from .board import Board, Hole, Wall, parse_square
+from .board import Board, Hole, Square, Wall, parse_square
 from .catalog import Catalog, load_catalog
 from .markup import Run, parse_markup
 from .options import RenderOptions
@@ -22,6 +22,7 @@ from .textmetrics import text_width
 
 U = 2000  # one square
 SINGLE = 100  # single border line thickness (GC2004D)
+WALL_FILL = "#666666"  # a solid wall's interior: 40% gray, outlined in black
 DOUBLE_THIN, DOUBLE_GAP, DOUBLE_THICK = 50, 100, 200  # GC2004Y double border
 CAPTION_GAP = 0.3 * U
 COUNT_GAP = 1.0  # space kept between the caption and the piece count, in caption ems
@@ -86,7 +87,8 @@ class Layout:
     board_x: float = 0  # top-left corner of the board's squares
     board_y: float = 0
     glyphs: list[GlyphUse] = field(default_factory=list)
-    rects: list[Rect] = field(default_factory=list)
+    rects: list[Rect] = field(default_factory=list)  # black: borders and wall outlines
+    wall_fills: list[Rect] = field(default_factory=list)  # WALL_FILL, drawn under rects
     arrows: list[list[Point]] = field(default_factory=list)
     marks: list[Mark] = field(default_factory=list)
     texts: list[Text] = field(default_factory=list)
@@ -146,11 +148,13 @@ def layout(
             glyph = cat.cell_glyph(cell, board.shade(r, c), opts.wall)
             if glyph is None:
                 if isinstance(cell, Wall):
-                    out.rects.append((x, y, U, U))
+                    out.wall_fills.append((x, y, U, U))
             elif glyph.bbox is not None:  # the empty light square is blank
                 out.glyphs.append(GlyphUse(glyph.key, x, y, board.square_name(r, c)))
 
     out.rects.extend(border_rects(board, opts.border, bx, by))
+    if opts.wall == "solid":
+        out.rects.extend(wall_outline_rects(board, opts.border, bx, by))
     out.arrows.extend(arrow_polygon(board, spec, bx, by) for spec in opts.arrows)
     out.marks.extend(annotation_mark(board, spec, bx, by) for spec in opts.annotations)
 
@@ -282,6 +286,47 @@ def border_rects(board: Board, style: str, bx: float, by: float) -> list[Rect]:
             ring = _ring(bx, by, w, h, inner, thick)
             horizontal += ring[:2]
             vertical += ring[2:]
+    return _merge(horizontal, axis=0) + _merge(vertical, axis=1)
+
+
+def wall_outline_rects(board: Board, style: str, bx: float, by: float) -> list[Rect]:
+    """Black lines inside solid walls, SINGLE thick, where they meet a square.
+
+    Edges at the frame or a hole already have a line just outside them (except with
+    border "none", where the wall draws those too), and edges between walls have none,
+    so a group of walls gets one outline. A corner square fills concave corners.
+    """
+
+    def outlines(r: int, c: int) -> bool:
+        """Whether a wall's edge next to (r, c) needs its own line."""
+        cell = board.cells[r][c] if board.contains(r, c) else None
+        return isinstance(cell, Square) or (style == "none" and not isinstance(cell, Wall))
+
+    t = SINGLE
+    horizontal: list[Rect] = []
+    vertical: list[Rect] = []
+    for r in range(board.height):
+        for c in range(board.width):
+            if not isinstance(board.cells[r][c], Wall):
+                continue
+            edge = {side: outlines(r + dr, c + dc) for side, (dr, dc) in _SIDES.items()}
+            x, y = bx + c * U, by + r * U
+            if edge["top"]:
+                horizontal.append((x, y, U, t))
+            if edge["bottom"]:
+                horizontal.append((x, y + U - t, U, t))
+            if edge["left"]:
+                vertical.append((x, y, t, U))
+            if edge["right"]:
+                vertical.append((x + U - t, y, t, U))
+            for v, h, dr, dc, cx, cy in (
+                ("top", "left", -1, -1, x, y),
+                ("top", "right", -1, 1, x + U - t, y),
+                ("bottom", "left", 1, -1, x, y + U - t),
+                ("bottom", "right", 1, 1, x + U - t, y + U - t),
+            ):
+                if not edge[v] and not edge[h] and outlines(r + dr, c + dc):
+                    horizontal.append((cx, cy, t, t))
     return _merge(horizontal, axis=0) + _merge(vertical, axis=1)
 
 

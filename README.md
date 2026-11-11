@@ -55,7 +55,7 @@ error.
   `-m arrow:e2-e4:vermilion` (`annotations` in `RenderOptions`). The editor labels
   vermilion "Orange".
 - translucent arrows such as `e2-e4` (`-a`; the LaTeX route B `arrows` key)
-- wall style: `solid` or `box`
+- wall style: `solid` (40% gray, outlined in black) or `box` (the fonts' framed square)
 - padding and a transparent background
 
 ## LaTeX

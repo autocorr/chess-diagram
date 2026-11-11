@@ -443,6 +443,43 @@ local function arrow_polygon(board, spec, bx, by)
   }
 end
 
+local WALL_FILL = "666666" -- a solid wall's interior: 40% gray, outlined in black
+
+--- Black lines inside solid walls where they meet a square (see geometry.py).
+local function wall_outline_rects(board, style, bx, by)
+  local function outlines(r, c)
+    local cell = contains(board, r, c) and board.cells[r][c] or nil
+    return (cell ~= nil and cell.t == "square")
+      or (style == "none" and not (cell ~= nil and cell.t == "wall"))
+  end
+  local t = SINGLE
+  local horizontal, vertical = {}, {}
+  for r = 1, board.height do
+    for c = 1, board.width do
+      if board.cells[r][c].t == "wall" then
+        local edge = {}
+        for _, side in ipairs(SIDES) do edge[side[1]] = outlines(r + side[2], c + side[3]) end
+        local x, y = bx + (c - 1) * U, by + (r - 1) * U
+        if edge.top then horizontal[#horizontal + 1] = { x, y, U, t } end
+        if edge.bottom then horizontal[#horizontal + 1] = { x, y + U - t, U, t } end
+        if edge.left then vertical[#vertical + 1] = { x, y, t, U } end
+        if edge.right then vertical[#vertical + 1] = { x + U - t, y, t, U } end
+        for _, corner in ipairs({
+          { "top", "left", -1, -1, x, y }, { "top", "right", -1, 1, x + U - t, y },
+          { "bottom", "left", 1, -1, x, y + U - t }, { "bottom", "right", 1, 1, x + U - t, y + U - t },
+        }) do
+          if not edge[corner[1]] and not edge[corner[2]] and outlines(r + corner[3], c + corner[4]) then
+            horizontal[#horizontal + 1] = { corner[5], corner[6], t, t }
+          end
+        end
+      end
+    end
+  end
+  local out = merge(horizontal, 0)
+  for _, rc in ipairs(merge(vertical, 1)) do out[#out + 1] = rc end
+  return out
+end
+
 --- Layout in font units (y down), without caption or padding.
 function M.layout(board, opts)
   local t = frame_thickness(opts.border)
@@ -452,16 +489,22 @@ function M.layout(board, opts)
     board_x = t,
     board_y = t,
     rects = {},
+    wall_fills = {},
     arrows = {},
   }
   for r = 1, board.height do
     for c = 1, board.width do
       if board.cells[r][c].t == "wall" and opts.wall ~= "box" then
-        lay.rects[#lay.rects + 1] = { t + (c - 1) * U, t + (r - 1) * U, U, U }
+        lay.wall_fills[#lay.wall_fills + 1] = { t + (c - 1) * U, t + (r - 1) * U, U, U }
       end
     end
   end
   for _, rc in ipairs(border_rects(board, opts.border, t, t)) do lay.rects[#lay.rects + 1] = rc end
+  if opts.wall ~= "box" then
+    for _, rc in ipairs(wall_outline_rects(board, opts.border, t, t)) do
+      lay.rects[#lay.rects + 1] = rc
+    end
+  end
   for _, spec in ipairs(opts.arrows or {}) do
     lay.arrows[#lay.arrows + 1] = arrow_polygon(board, spec, t, t)
   end
@@ -524,14 +567,20 @@ function M.tex_parts(board, opts)
     lines[#lines + 1] = string.format("\\gcrank{%s}{%s}{%s}",
       num(lay.board_x), num(baseline), rank_runs(board, r, opts))
   end
-  if #lay.rects > 0 then
+  local function rects(list)
     local parts = {}
-    for _, rc in ipairs(lay.rects) do
+    for _, rc in ipairs(list) do
       local x, y, w, h = rc[1], rc[2], rc[3], rc[4]
       parts[#parts + 1] = string.format("\\gcr{%s}{%s}{%s}{%s}",
         num(x), num(height - y - h), num(w), num(h))
     end
-    lines[#lines + 1] = "\\gcrects{" .. table.concat(parts) .. "}"
+    return table.concat(parts)
+  end
+  if #lay.wall_fills > 0 then
+    lines[#lines + 1] = "\\gcfills{" .. WALL_FILL .. "}{" .. rects(lay.wall_fills) .. "}"
+  end
+  if #lay.rects > 0 then
+    lines[#lines + 1] = "\\gcrects{" .. rects(lay.rects) .. "}"
   end
   if #lay.arrows > 0 then
     local parts = {}
