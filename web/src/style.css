@@ -7,8 +7,25 @@
   --accent: #2f5fb3;
   --error: #b3261e;
   --hover: rgba(47, 95, 179, 0.28);
+  --selected: rgba(47, 95, 179, 0.08);
+  /* The board and palette glyphs are black ink, as in the exported diagram, so they
+     stay on white paper in both themes. */
+  --paper: #fff;
   color-scheme: light;
   font: 14px/1.4 system-ui, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --bg: #17181a;
+  --panel: #222326;
+  --text: #e4e4e0;
+  --muted: #9b9b95;
+  --line: #3b3c40;
+  --accent: #82a7f0;
+  --error: #f28b82;
+  --hover: rgba(47, 95, 179, 0.32);
+  --selected: rgba(130, 167, 240, 0.16);
+  color-scheme: dark;
 }
 
 * {
@@ -45,9 +62,69 @@ h1 {
   color: var(--error);
 }
 
-#help-link {
+#theme-toggle {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* A small on/off switch. */
+.switch {
+  position: relative;
+  width: 1.9rem;
+  height: 1.05rem;
+  border-radius: 1rem;
+  background: var(--line);
+  transition: background 0.15s;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+#theme-toggle[aria-checked="true"] .switch {
+  background: var(--accent);
+}
+
+#theme-toggle[aria-checked="true"] .switch::after {
+  transform: translateX(0.85rem);
+}
+
+#help-link {
   color: var(--accent);
+}
+
+h1,
+#status,
+#theme-toggle,
+#help-link {
+  white-space: nowrap;
+}
+
+/* Narrow screens: the switch alone (its aria-label still names it) keeps the header to one line. */
+@media (max-width: 480px) {
+  header {
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+  }
+
+  .switch-label {
+    display: none;
+  }
 }
 
 dialog {
@@ -142,7 +219,7 @@ main {
 
 #board {
   width: min(100%, 55svh, 720px);
-  background: var(--panel);
+  background: var(--paper);
   border: 1px solid var(--line);
   padding: 0.75rem;
   user-select: none;
@@ -353,7 +430,7 @@ button {
 
 .segmented label:has(input:checked) {
   border-color: var(--accent);
-  background: rgba(47, 95, 179, 0.08);
+  background: var(--selected);
 }
 
 .segmented label:has(input:disabled) {
@@ -379,7 +456,7 @@ button {
   padding: 0.15rem;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: #fff;
+  background: var(--paper);
   cursor: pointer;
 }
 

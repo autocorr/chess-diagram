@@ -522,6 +522,9 @@ as the CLI writes them.
     on portrait screens, where the board sticks to the top and the controls scroll under
     it. Either way a figure can be picked and placed without scrolling the board away.
   - Help: a modal dialog from the header link.
+  - Dark mode: a switch in the header. Until it is used the page follows the system
+    setting; a choice is saved in `localStorage`, and a script in `index.html` applies it
+    before the first paint. The board and palette glyphs stay on white, as exported.
   - Board size, border, wall style, caption, piece count and square size.
   - FEN field: validated as you type and normalised when you leave it.
   - URL hash state, so a link or a reload restores the diagram.

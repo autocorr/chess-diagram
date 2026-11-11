@@ -490,6 +490,32 @@ function wire(): void {
   });
   addEventListener("resize", closeMenu);
   addEventListener("scroll", closeMenu, true);
+  // Theme: the page script in index.html picks the starting theme (a saved choice, else
+  // the system's). Flipping the switch saves a choice; without one, follow the system.
+  const themeToggle = $("theme-toggle");
+  const systemDark = matchMedia("(prefers-color-scheme: dark)");
+  const setTheme = (dark: boolean) => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    themeToggle.setAttribute("aria-checked", String(dark));
+  };
+  setTheme(document.documentElement.dataset.theme === "dark");
+  themeToggle.addEventListener("click", () => {
+    const dark = document.documentElement.dataset.theme !== "dark";
+    setTheme(dark);
+    try {
+      localStorage.setItem("theme", dark ? "dark" : "light");
+    } catch {
+      // Storage can be unavailable (private windows); the switch still works for this page.
+    }
+  });
+  systemDark.addEventListener("change", (e) => {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem("theme");
+    } catch {}
+    if (!saved) setTheme(e.matches);
+  });
+
   // Help: a modal dialog. The link doesn't navigate, because the URL hash holds the diagram.
   const help = $("help") as HTMLDialogElement;
   $("help-link").addEventListener("click", (e) => {

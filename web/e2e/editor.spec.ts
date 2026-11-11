@@ -91,6 +91,29 @@ test("the Help link opens and closes a modal", async ({ page }) => {
   await expect(help).toBeHidden();
 });
 
+test("dark mode follows the system until switched, and the switch is remembered", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await open(page);
+  const html = page.locator("html");
+  const toggle = page.getByTestId("theme-toggle");
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const dark = await background();
+  // The board stays black on white, as exported.
+  expect(await page.evaluate(() => getComputedStyle(document.getElementById("board")!).backgroundColor)).toBe(
+    "rgb(255, 255, 255)",
+  );
+  await toggle.click();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  expect(await background()).not.toBe(dark);
+  // A saved choice beats the system setting.
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await expect(page.getByTestId("theme-toggle")).toHaveAttribute("aria-checked", "false");
+});
+
 test("typing a FEN validates it and normalises it", async ({ page }) => {
   await open(page);
   await fen(page).fill("8/7");

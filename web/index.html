@@ -6,11 +6,26 @@
     <title>Chess Diagram Editor</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/style.css" />
+    <script>
+      // Set the theme before the first paint, so a dark page never flashes light.
+      // A saved choice wins; otherwise follow the system.
+      (function () {
+        var saved = null;
+        try {
+          saved = localStorage.getItem("theme");
+        } catch (e) {}
+        var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script>
   </head>
   <body>
     <header>
       <h1>Chess Diagram Editor</h1>
       <span id="status" data-testid="status" role="status">Loading Python…</span>
+      <button id="theme-toggle" data-testid="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Dark mode">
+        <span class="switch" aria-hidden="true"></span><span class="switch-label">Dark mode</span>
+      </button>
       <a id="help-link" data-testid="help-link" href="#" aria-haspopup="dialog">Help</a>
     </header>
     <dialog id="help" data-testid="help" aria-labelledby="help-title">
