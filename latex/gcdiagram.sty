@@ -1,0 +1,82 @@
+% gcdiagram.sty -- chess diagrams from extended FEN with the Good Companion fonts (LuaLaTeX).
+%
+%   \usepackage{gcdiagram}
+%   \gcfontpath{path/to/fonts/}             % unless GC2004*.TTF are installed
+%   \gcdiagramsetup{size=18pt, border=double}
+%   \gcdiagram[caption={\#2}, count, arrows={e2-e4, g1-f3}]{rnbqkbnr/pppp.ppp/8/8/8/8/PPPPPPPP/RNBQKBNR}
+%
+% Keys: size=<dim>, border=single|double|outline|none, wall=solid|box,
+%       caption=<LaTeX text; \\ separates lines>, count[=true|false],
+%       arrows={<from>-<to>, ...}, arrow color=<RRGGBB>, arrow opacity=<0..1>
+%
+% The FEN is parsed in Lua (gcdiagram.lua) and drawn with gcsnippet.sty, the same
+% primitives used by snippets that the gcdiagram Python package writes.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{gcdiagram}[2026/11/10 v0.1 Good Companion chess diagrams from FEN]
+\RequirePackage{iftex}
+\ifluatex\else
+  \PackageError{gcdiagram}{LuaLaTeX is required}
+    {gcdiagram.sty parses FEN in Lua. With XeLaTeX, use gcsnippet.sty and snippets
+     written by the gcdiagram Python package instead.}
+\fi
+\RequirePackage{gcsnippet}
+
+\directlua{gcdiagram = require("gcdiagram")}
+
+\ExplSyntaxOn
+\tl_new:N \l__gcdiagram_border_tl
+\tl_new:N \l__gcdiagram_wall_tl
+\tl_new:N \l__gcdiagram_caption_tl
+\tl_new:N \l__gcdiagram_arrows_tl
+\tl_new:N \l__gcdiagram_arrow_color_tl
+\tl_new:N \l__gcdiagram_arrow_opacity_tl
+\bool_new:N \l__gcdiagram_count_bool
+
+\keys_define:nn { gcdiagram }
+  {
+    size .code:n = \gcsquaresize {#1} ,
+    border .choices:nn = { single, double, outline, none }
+      { \tl_set_eq:NN \l__gcdiagram_border_tl \l_keys_choice_tl } ,
+    border .initial:n = single ,
+    wall .choices:nn = { solid, box }
+      { \tl_set_eq:NN \l__gcdiagram_wall_tl \l_keys_choice_tl } ,
+    wall .initial:n = solid ,
+    caption .tl_set:N = \l__gcdiagram_caption_tl ,
+    count .bool_set:N = \l__gcdiagram_count_bool ,
+    count .default:n = true ,
+    arrows .tl_set:N = \l__gcdiagram_arrows_tl ,
+    arrow~color .tl_set:N = \l__gcdiagram_arrow_color_tl ,
+    arrow~color .initial:n = 000000 ,
+    arrow~opacity .tl_set:N = \l__gcdiagram_arrow_opacity_tl ,
+    arrow~opacity .initial:n = 0.6 ,
+  }
+
+\NewDocumentCommand \gcdiagramsetup { m } { \keys_set:nn { gcdiagram } {#1} }
+
+\NewDocumentCommand \gcdiagram { O{} m }
+  {
+    \group_begin:
+      \keys_set:nn { gcdiagram } {#1}
+      \lua_now:e
+        {
+          gcdiagram.typeset(
+            "\lua_escape:e { \tl_to_str:n {#2} }",
+            "\l__gcdiagram_border_tl",
+            "\l__gcdiagram_wall_tl",
+            "\lua_escape:e { \tl_to_str:V \l__gcdiagram_arrows_tl }",
+            \bool_if:NTF \l__gcdiagram_count_bool { true } { false },
+            "\l__gcdiagram_arrow_color_tl",
+            "\l__gcdiagram_arrow_opacity_tl"
+          )
+        }
+    \group_end:
+  }
+
+% Called from Lua with the computed size, body and piece count. The caption variable
+% is passed by value (V), so \gcbox can tell when there is no caption.
+\cs_new_protected:Npn \__gcdiagram_box:nnnnn #1#2#3#4#5 { \gcbox {#1} {#2} {#3} {#4} {#5} }
+\cs_generate_variant:Nn \__gcdiagram_box:nnnnn { nnnVn }
+\cs_new_protected:Npn \gcLuaResult #1#2#3#4
+  { \__gcdiagram_box:nnnVn {#1} {#2} {#3} \l__gcdiagram_caption_tl {#4} }
+\ExplSyntaxOff
+\endinput
