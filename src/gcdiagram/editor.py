@@ -45,7 +45,7 @@ def options_from(data: dict[str, Any] | None) -> RenderOptions:
     """RenderOptions from a dict, ignoring unknown keys and converting lists."""
     data = dict(data or {})
     kwargs = {k: v for k, v in data.items() if k in _OPTION_FIELDS}
-    for key in ("caption", "arrows"):
+    for key in ("caption", "caption_above", "arrows", "annotations"):
         if key in kwargs:
             kwargs[key] = tuple(str(v) for v in kwargs[key] if str(v).strip())
     return RenderOptions(**kwargs)

@@ -1,7 +1,7 @@
 """Format-independent layout of a diagram, in font units (one square = 2000).
 
 The layout's y axis points down. Renderers only have to draw what is listed here:
-glyph placements, filled rectangles, arrow polygons and text.
+glyph placements, filled rectangles, arrow polygons, annotation marks and text.
 """
 
 from __future__ import annotations
@@ -12,9 +12,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
+from .annotations import FILL, Annotation, parse_annotation
 from .board import Board, Hole, Wall, parse_square
 from .catalog import Catalog, load_catalog
+from .markup import Run, parse_markup
 from .options import RenderOptions
+from .svgpath import Segment
 from .textmetrics import text_width
 
 U = 2000  # one square
@@ -27,6 +30,16 @@ LINE_HEIGHT = 1.25
 ARROW_SHAFT = 200
 ARROW_HEAD_LENGTH = 640
 ARROW_HEAD_WIDTH = 600
+
+# Annotation marks, centred in their square.
+MARK_LINE = 140  # line thickness of the circle, square and triangle
+CIRCLE_RADIUS = 880
+SQUARE_HALF = 820
+TRIANGLE_RADIUS = 980  # circumradius of the outer edge
+CROSS_ARM = 620  # from the centre to the end of each bar, along x and y
+CROSS_LINE = 160
+DOT_RADIUS = 200  # a solid dot a fifth of a square across
+HALO = 120  # stroke width of the white outline behind every mark (half shows)
 
 Rect = tuple[float, float, float, float]  # x, y, w, h
 Point = tuple[float, float]
@@ -45,8 +58,24 @@ class Text:
     x: float
     y: float  # baseline
     size: float
-    text: str
+    runs: tuple[Run, ...]  # styled pieces of the line, set one after another
     anchor: Literal["start", "middle", "end"] = "middle"
+
+    @property
+    def text(self) -> str:
+        return "".join(r.text for r in self.runs)
+
+
+@dataclass(frozen=True)
+class Mark:
+    """A filled annotation shape, drawn over the board."""
+
+    path: list[Segment]
+    fill: str
+    halo: float = 0  # stroke width of a white outline drawn behind it; 0 for none
+
+
+Line = tuple[Run, ...]
 
 
 @dataclass
@@ -59,6 +88,7 @@ class Layout:
     glyphs: list[GlyphUse] = field(default_factory=list)
     rects: list[Rect] = field(default_factory=list)
     arrows: list[list[Point]] = field(default_factory=list)
+    marks: list[Mark] = field(default_factory=list)
     texts: list[Text] = field(default_factory=list)
 
 
@@ -80,29 +110,33 @@ def layout(
     t = frame_thickness(opts.border)
     board_w, board_h = board.width * U, board.height * U
 
-    # The caption is left-aligned and the piece count right-aligned on its first line.
-    # The caption wraps at spaces to the diagram's width, its first line stopping short
-    # of the count; only a word too long for any line widens the diagram.
+    # Captions are left-aligned, and the piece count right-aligned on the first line of
+    # the caption below the board. Captions wrap at spaces to the diagram's width, the
+    # first line below stopping short of the count; only a word too long for any line
+    # widens the diagram.
     size = opts.caption_size * U
+    pitch = size * LINE_HEIGHT
     count = board.piece_count_label() if opts.piece_count else ""
     count_w = text_width(count, size) + COUNT_GAP * size if count else 0
     diagram_w = board_w + 2 * t
-    words = [w for line in opts.caption for w in line.split()]
-    first_words = (opts.caption[0].split() if opts.caption else [])[:1]
+    words = [w for line in [*opts.caption_above, *opts.caption] for w in caption_words(line)]
+    first_words = (caption_words(opts.caption[0]) if opts.caption else [])[:1]
     content_w = max(
         [diagram_w]
-        + [text_width(w, size) for w in words]
-        + [count_w + text_width(w, size) for w in first_words],
+        + [line_width(w, size) for w in words]
+        + [count_w + line_width(w, size) for w in first_words],
     )
+    above = wrap_caption(opts.caption_above, size, content_w, 0)
     lines = wrap_caption(opts.caption, size, content_w, count_w)
     if count and not lines:
-        lines = [""]
+        lines = [()]
     width = content_w + 2 * pad
-    caption_h = (CAPTION_GAP + len(lines) * size * LINE_HEIGHT) if lines else 0
-    height = board_h + 2 * t + caption_h + 2 * pad
+    above_h = (len(above) * pitch + CAPTION_GAP) if above else 0
+    caption_h = (CAPTION_GAP + len(lines) * pitch) if lines else 0
+    height = above_h + board_h + 2 * t + caption_h + 2 * pad
 
     bx = pad + (content_w - diagram_w) / 2 + t
-    by = pad + t
+    by = pad + above_h + t
     out = Layout(width, height, (0, 0, width, height) if opts.background else None, bx, by)
 
     # Squares, figures and walls.
@@ -118,32 +152,74 @@ def layout(
 
     out.rects.extend(border_rects(board, opts.border, bx, by))
     out.arrows.extend(arrow_polygon(board, spec, bx, by) for spec in opts.arrows)
+    out.marks.extend(annotation_mark(board, spec, bx, by) for spec in opts.annotations)
 
+    for i, line in enumerate(above):
+        if line:
+            out.texts.append(Text(pad, pad + size * 0.8 + i * pitch, size, line, "start"))
     if lines:
         baseline = by + board_h + t + CAPTION_GAP + size * 0.8
         for i, line in enumerate(lines):
             if line:
-                out.texts.append(Text(pad, baseline + i * size * LINE_HEIGHT, size, line, "start"))
+                out.texts.append(Text(pad, baseline + i * pitch, size, line, "start"))
         if count:
-            out.texts.append(Text(pad + content_w, baseline, size, count, "end"))
+            out.texts.append(Text(pad + content_w, baseline, size, (Run(count),), "end"))
     return out
 
 
-def wrap_caption(caption: Sequence[str], size: float, width: float, count_w: float) -> list[str]:
+# --- Captions -----------------------------------------------------------------------------
+
+
+def caption_words(line: str) -> list[Line]:
+    """The words of a caption line (split at whitespace), each as styled runs."""
+    words: list[Line] = []
+    current: list[Run] = []
+    for run in parse_markup(line):
+        for i, part in enumerate(re.split(r"(\s+)", run.text)):
+            if i % 2:  # whitespace
+                if current:
+                    words.append(tuple(current))
+                    current = []
+            elif part:
+                current.append(Run(part, run.bold, run.italic))
+    if current:
+        words.append(tuple(current))
+    return words
+
+
+def line_width(runs: Line, size: float) -> float:
+    return sum(text_width(r.text, size, r.bold) for r in runs)
+
+
+def _join(a: Line, b: Line) -> Line:
+    """Two pieces of a line with a space between them (in a's style), merging runs."""
+    last = a[-1]
+    out = [*a[:-1], Run(last.text + " ", last.bold, last.italic)]
+    for run in b:
+        prev = out[-1]
+        if (prev.bold, prev.italic) == (run.bold, run.italic):
+            out[-1] = Run(prev.text + run.text, run.bold, run.italic)
+        else:
+            out.append(run)
+    return tuple(out)
+
+
+def wrap_caption(caption: Sequence[str], size: float, width: float, count_w: float) -> list[Line]:
     """Break caption lines at spaces so each fits in width, the first line in width -
-    count_w (beside the piece count). Explicit lines stay separate. A word too long for
-    its line is put on it anyway (the caller makes the width fit every word)."""
-    out: list[str] = []
+    count_w (beside the piece count). Explicit lines stay separate, and an empty one
+    is (). A word too long for its line is put on it anyway (the caller makes the width
+    fit every word)."""
+    out: list[Line] = []
     for line in caption:
-        words = line.split()
+        words = caption_words(line)
         if not words:
-            out.append("")
+            out.append(())
             continue
-        current = ""
+        current: Line = ()
         for word in words:
-            candidate = f"{current} {word}" if current else word
+            candidate = _join(current, word) if current else word
             room = width - (count_w if not out else 0)
-            if current and text_width(candidate, size) > room:
+            if current and line_width(candidate, size) > room:
                 out.append(current)
                 current = word
             else:
@@ -285,3 +361,84 @@ def arrow_polygon(board: Board, spec: str | tuple[str, str], bx: float, by: floa
         (ax - nx * s, ay - ny * s),
     ]
     return pts
+
+
+# --- Annotations --------------------------------------------------------------------------
+
+
+def annotation_mark(board: Board, spec: str | Annotation, bx: float, by: float) -> Mark:
+    ann = parse_annotation(spec)
+    if ann.kind == "arrow":
+        a, b = ann.squares
+        return Mark(_polygon(arrow_polygon(board, (a, b), bx, by)), FILL[ann.color], HALO)
+    (square,) = ann.squares
+    r, c = parse_square(square, board.height)
+    if c >= board.width:
+        raise ValueError(f"annotation {str(ann)!r} is off the board")
+    cx, cy = bx + (c + 0.5) * U, by + (r + 0.5) * U
+    # Rings are an outer edge drawn one way and an inner edge drawn the other, so the
+    # nonzero fill rule (the default in SVG, PDF and PGF) leaves the middle empty.
+    if ann.kind == "circle":
+        path = _circle(cx, cy, CIRCLE_RADIUS, 1) + _circle(cx, cy, CIRCLE_RADIUS - MARK_LINE, -1)
+    elif ann.kind == "square":
+        o, i = SQUARE_HALF, SQUARE_HALF - MARK_LINE
+        path = _polygon([(cx - o, cy - o), (cx + o, cy - o), (cx + o, cy + o), (cx - o, cy + o)])
+        path += _polygon([(cx - i, cy - i), (cx - i, cy + i), (cx + i, cy + i), (cx + i, cy - i)])
+    elif ann.kind == "triangle":
+        # Point up, with the bounding box centred in the square. The inner edge is
+        # MARK_LINE inside the outer one; an equilateral triangle's inradius is half
+        # its circumradius, hence the 2 * MARK_LINE.
+        ty = cy + TRIANGLE_RADIUS / 4
+        path = _triangle(cx, ty, TRIANGLE_RADIUS, 1)
+        path += _triangle(cx, ty, TRIANGLE_RADIUS - 2 * MARK_LINE, -1)
+    elif ann.kind == "dot":
+        path = _circle(cx, cy, DOT_RADIUS, 1)
+    else:
+        path = _polygon(_cross(cx, cy))
+    return Mark(path, FILL[ann.color], HALO)
+
+
+def _polygon(points: Sequence[Point]) -> list[Segment]:
+    (x0, y0), *rest = points
+    return [("M", x0, y0), *(("L", x, y) for x, y in rest), ("Z",)]
+
+
+def _circle(cx: float, cy: float, r: float, direction: int) -> list[Segment]:
+    """A circle as eight quadratic Beziers (within 0.1% of the radius)."""
+    n = 8
+    k = r / math.cos(math.pi / n)  # control points lie on a larger circle
+    path: list[Segment] = [("M", cx + r, cy)]
+    for i in range(1, n + 1):
+        mid, end = direction * (i - 0.5) * 2 * math.pi / n, direction * i * 2 * math.pi / n
+        path.append(
+            (
+                "Q",
+                cx + k * math.cos(mid),
+                cy + k * math.sin(mid),
+                cx + r * math.cos(end),
+                cy + r * math.sin(end),
+            )
+        )
+    return [*path, ("Z",)]
+
+
+def _triangle(cx: float, cy: float, r: float, direction: int) -> list[Segment]:
+    """An upright equilateral triangle with its centroid at (cx, cy), y down."""
+    angles = (-90, 30, 150) if direction > 0 else (-90, 150, 30)
+    return _polygon(
+        [(cx + r * math.cos(math.radians(a)), cy + r * math.sin(math.radians(a))) for a in angles]
+    )
+
+
+def _cross(cx: float, cy: float) -> list[Point]:
+    """The outline of a diagonal cross: two bars, CROSS_LINE thick, meeting at the centre."""
+    a = CROSS_ARM
+    e = CROSS_LINE / 2 / math.sqrt(2)  # half the bar thickness, along x and y
+    k = 2 * e  # where the bars' edges cross the axes
+    corners = [
+        (0, -k), (a - e, -a - e), (a + e, -a + e),
+        (k, 0), (a + e, a - e), (a - e, a + e),
+        (0, k), (-a + e, a + e), (-a - e, a - e),
+        (-k, 0), (-a - e, -a + e), (-a + e, -a - e),
+    ]  # fmt: skip
+    return [(cx + x, cy + y) for x, y in corners]

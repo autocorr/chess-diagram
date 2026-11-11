@@ -230,29 +230,108 @@ test("holes, walls and board size", async ({ page }) => {
   await expect(fen(page)).toHaveValue("10/10/.9");
 });
 
-test("arrows and diagram options", async ({ page }) => {
+test("annotations and diagram options", async ({ page }) => {
   await open(page);
-  await choose(page, "tool", "arrow");
+  const annotations = page.getByTestId("annotations");
+  const items = annotations.locator(".label");
+  await expect(annotations).toHaveText("No annotations");
+  // Choosing a shape or colour switches to the Annotate tool.
+  await page.getByText("Arrow", { exact: true }).click();
+  await expect(page.locator('input[name="tool"][value="annotate"]')).toBeChecked();
   await dragSquares(page, "e2", "e4");
-  await expect(page.getByTestId("arrows")).toHaveText("Arrows: e2-e4");
-  await expect(page.locator('#board svg path[fill-opacity=".6"]')).toHaveCount(1);
+  await expect(items).toHaveText(["arrow e2-e4"]);
+  await choose(page, "mark-kind", "circle");
+  await choose(page, "mark-color", "vermilion");
+  await clickSquare(page, "d1");
+  await expect(items).toHaveText(["arrow e2-e4", "circle d1 (orange)"]);
+  await expect(page.locator('#board svg path[fill="#D55E00"]')).toHaveCount(1);
+  // Every mark is outlined in white.
+  await expect(page.locator('#board svg path[stroke="#fff"]')).toHaveCount(2);
+  // The same mark in another colour recolours it; in the same colour, removes it.
+  await choose(page, "mark-color", "green");
+  await clickSquare(page, "d1");
+  await expect(items).toHaveText(["arrow e2-e4", "circle d1 (green)"]);
+  await expect(page.locator('#board svg path[fill="#009E73"]')).toHaveCount(1);
+  await clickSquare(page, "d1");
+  await expect(items).toHaveText(["arrow e2-e4"]);
+  for (const kind of ["cross", "square", "triangle", "dot"]) {
+    await choose(page, "mark-kind", kind);
+    await clickSquare(page, "h8");
+  }
+  await expect(items).toHaveText(["arrow e2-e4", "cross h8 (green)", "square h8 (green)", "triangle h8 (green)", "dot h8 (green)"]);
   await page.getByTestId("border").selectOption("double");
   await page.getByTestId("caption").fill("#2");
   await page.getByTestId("count").check();
   await expect(page.locator("#board svg text")).toHaveText(["#2", "(16+16)"]);
   expect(page.url()).toContain("border=double");
-  expect(page.url()).toContain("arrow=e2-e4");
+  expect(page.url()).toContain("mark=arrow%3Ae2-e4");
   // The URL restores everything.
   await page.reload();
   await expect(page.locator("body[data-ready]")).toBeAttached({ timeout: 45_000 });
   await expect(page.getByTestId("border")).toHaveValue("double");
-  await expect(page.getByTestId("arrows")).toHaveText("Arrows: e2-e4");
+  await expect(items).toHaveText(["arrow e2-e4", "cross h8 (green)", "square h8 (green)", "triangle h8 (green)", "dot h8 (green)"]);
   await expect(page.locator("#board svg text")).toHaveText(["#2", "(16+16)"]);
+  // Clicking an item removes just that annotation.
+  await annotations.getByRole("button", { name: "Remove square h8 (green)" }).click();
+  await expect(items).toHaveText(["arrow e2-e4", "cross h8 (green)", "triangle h8 (green)", "dot h8 (green)"]);
+  await expect(page.locator('#board svg path[fill="#009E73"]')).toHaveCount(3);
+  expect(page.url()).not.toContain("square%3Ah8");
+  await page.getByRole("button", { name: "Clear annotations" }).click();
+  await expect(annotations).toHaveText("No annotations");
+  expect(page.url()).not.toContain("mark=");
+});
+
+test("old links with arrow= still show their arrows", async ({ page }) => {
+  await open(page, "#arrow=e2-e4");
+  await expect(page.getByTestId("annotations").locator(".label")).toHaveText(["arrow e2-e4"]);
+});
+
+test("captions above and below, with bold and italic", async ({ page }) => {
+  await open(page);
+  const above = page.getByTestId("caption-above");
+  await above.fill("The Problemist 2024");
+  // Select "The Problemist" and make it italic with the button, then bold with Ctrl+B.
+  await above.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(0, 14));
+  await page.getByRole("button", { name: "Italic" }).click();
+  await expect(above).toHaveValue("<i>The Problemist</i> 2024");
+  await page.keyboard.press("Control+b");
+  await expect(above).toHaveValue("<i><b>The Problemist</b></i> 2024");
+  await page.keyboard.press("Control+b"); // again: unwraps
+  await expect(above).toHaveValue("<i>The Problemist</i> 2024");
+  await page.getByTestId("caption").fill("<b>#2</b>");
+  await idle(page);
+  const texts = page.locator("#board svg text");
+  await expect(texts).toHaveText(["The Problemist 2024", "#2"]);
+  await expect(texts.nth(0).locator('tspan[font-style="italic"]')).toHaveText("The Problemist ");
+  await expect(texts.nth(1).locator('tspan[font-weight="bold"]')).toHaveText("#2");
+  // Both are left-aligned at the diagram's edge, one above the board and one below.
+  const [a, b] = await texts.evaluateAll((els) => els.map((el) => el.getBoundingClientRect()));
+  const board = (await page.locator("#board svg use").first().boundingBox())!;
+  expect(Math.abs(a!.left - b!.left)).toBeLessThan(1);
+  expect(a!.bottom).toBeLessThan(board.y);
+  expect(b!.top).toBeGreaterThan(board.y);
+  expect(page.url()).toContain("above=");
+});
+
+test("the Dark mode switch and the Help link share a centre line", async ({ page }) => {
+  await open(page);
+  const middle = async (selector: string) => {
+    const box = (await page.locator(selector).boundingBox())!;
+    return box.y + box.height / 2;
+  };
+  const label = await middle("#theme-toggle .switch-label");
+  expect(Math.abs(label - (await middle("#theme-toggle .switch")))).toBeLessThan(1);
+  expect(Math.abs(label - (await middle("#help-link")))).toBeLessThan(1);
 });
 
 test("exports are byte-identical to the gcdiagram CLI", async ({ page }) => {
   const position = "4k3/8/8/2{Q90}5/8/8/8/4K3";
-  await open(page, `#fen=${encodeURIComponent(position)}&border=double&caption=%232&count=1&arrow=e1-e8`);
+  const marks = ["arrow:e1-e8", "circle:c5:vermilion", "cross:e8", "triangle:a1:green", "square:h1:blue"];
+  await open(
+    page,
+    `#fen=${encodeURIComponent(position)}&border=double&above=${encodeURIComponent("<i>J. Smith</i>")}` +
+      `&caption=${encodeURIComponent("<b>#2</b>")}&count=1&${marks.map((m) => `mark=${m}`).join("&")}`,
+  );
   for (const fmt of ["svg", "pdf", "tex"]) {
     const download = page.waitForEvent("download");
     await page.locator(`[data-export="${fmt}"]`).click();
@@ -261,7 +340,10 @@ test("exports are byte-identical to the gcdiagram CLI", async ({ page }) => {
     const browser = readFileSync((await file.path())!);
     const cli = execFileSync(
       "uv",
-      ["run", "gcdiagram", position, "-f", fmt, "-b", "double", "-c", "#2", "-n", "-a", "e1-e8"],
+      [
+        "run", "gcdiagram", position, "-f", fmt, "-b", "double", "-C", "<i>J. Smith</i>",
+        "-c", "<b>#2</b>", "-n", ...marks.flatMap((m) => ["-m", m]),
+      ],
       { cwd: REPO },
     );
     expect(browser.equals(cli), `${fmt} export differs from the CLI`).toBe(true);

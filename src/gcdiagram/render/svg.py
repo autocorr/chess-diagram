@@ -7,9 +7,9 @@ from string import ascii_lowercase
 
 from ..board import Board
 from ..catalog import Catalog
-from ..geometry import Layout, U, layout
+from ..geometry import Layout, Text, U, layout
 from ..options import RenderOptions
-from ..svgpath import fmt, svg_path
+from ..svgpath import fmt, svg_path, to_svg
 from . import prepare
 
 FONT_FAMILY = "Helvetica,Arial,sans-serif"
@@ -91,13 +91,36 @@ def _document(
         opacity = f' fill-opacity="{fmt(opts.arrow_opacity)}"' if opts.arrow_opacity < 1 else ""
         parts.append(f'<path d="{d}" fill="{escape(opts.arrow_color)}"{opacity}/>')
 
+    for mark in lay.marks:
+        d = to_svg(mark.path)
+        if mark.halo:
+            parts.append(
+                f'<path d="{d}" fill="none" stroke="#fff" stroke-width="{fmt(mark.halo)}" '
+                'stroke-linejoin="round"/>'
+            )
+        parts.append(f'<path d="{d}" fill="{mark.fill}"/>')
+
     if lay.texts:
         size = lay.texts[0].size
         parts.append(f'<g font-family="{FONT_FAMILY}" font-size="{fmt(size)}">')
         for t in lay.texts:
             anchor = "" if t.anchor == "start" else f' text-anchor="{t.anchor}"'
-            parts.append(f'<text x="{fmt(t.x)}" y="{fmt(t.y)}"{anchor}>{escape(t.text)}</text>')
+            # Runs end with the space before the next word; xml:space keeps it in
+            # renderers that trim each text node.
+            space = ' xml:space="preserve"' if len(t.runs) > 1 else ""
+            parts.append(f'<text x="{fmt(t.x)}" y="{fmt(t.y)}"{anchor}{space}>{_text(t)}</text>')
         parts.append("</g>")
 
     parts.append("</svg>")
     return "".join(parts) + "\n"
+
+
+def _text(t: Text) -> str:
+    """A line's content: plain text, or a tspan for each bold or italic run."""
+    out = []
+    for run in t.runs:
+        attrs = (' font-weight="bold"' if run.bold else "") + (
+            ' font-style="italic"' if run.italic else ""
+        )
+        out.append(f"<tspan{attrs}>{escape(run.text)}</tspan>" if attrs else escape(run.text))
+    return "".join(out)

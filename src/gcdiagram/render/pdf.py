@@ -15,11 +15,18 @@ from ..board import Board
 from ..catalog import Catalog
 from ..geometry import Layout, U, layout
 from ..options import RenderOptions
-from ..svgpath import fmt, pdf_path
+from ..svgpath import fmt, pdf_path, to_pdf
 from ..textmetrics import text_width
 from . import prepare
 
 _NAMED = {"white": "#fff", "black": "#000"}
+# Base-14 fonts for caption runs, by (bold, italic).
+_FONTS = {
+    (False, False): "Helvetica",
+    (True, False): "Helvetica-Bold",
+    (False, True): "Helvetica-Oblique",
+    (True, True): "Helvetica-BoldOblique",
+}
 
 
 def parse_color(color: str) -> tuple[float, float, float]:
@@ -139,15 +146,38 @@ def _document(lay: Layout, opts: RenderOptions, cat: Catalog) -> bytes:
             ops.append("h")
         ops.append("f Q")
 
+    for mark in lay.marks:
+        path = to_pdf(mark.path).replace("\n", " ")
+        if mark.halo:
+            ops.append(f"q 1 G {fmt(mark.halo)} w 1 j {path} S Q")
+        ops.append(f"q {_rgb(mark.fill, 'rg')} {path} f Q")
+
     if lay.texts:
-        font = w.add(b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding/WinAnsiEncoding>>")
-        resources.append(f"/Font<</F1 {font} 0 R>>")
-        for t in lay.texts:
-            width = text_width(t.text, t.size)
-            x = t.x - {"start": 0, "middle": width / 2, "end": width}[t.anchor]
-            ops.append(
-                f"BT/F1 {fmt(t.size)} Tf 1 0 0 -1 {fmt(x)} {fmt(t.y)} Tm {_pdf_string(t.text)}Tj ET"
+        # One font object per style used, F1 being plain Helvetica.
+        styles = sorted({(r.bold, r.italic) for t in lay.texts for r in t.runs})
+        names = {style: f"F{i}" for i, style in enumerate(styles, start=1)}
+        fonts = "".join(
+            f"/{names[style]} "
+            + str(
+                w.add(
+                    f"<</Type/Font/Subtype/Type1/BaseFont/{_FONTS[style]}"
+                    "/Encoding/WinAnsiEncoding>>".encode()
+                )
             )
+            + " 0 R"
+            for style in styles
+        )
+        resources.append(f"/Font<<{fonts}>>")
+        for t in lay.texts:
+            width = sum(text_width(r.text, t.size, r.bold) for r in t.runs)
+            x = t.x - {"start": 0, "middle": width / 2, "end": width}[t.anchor]
+            shows = "".join(
+                f"/{names[(r.bold, r.italic)]} {fmt(t.size)} Tf"
+                + (f" 1 0 0 -1 {fmt(x)} {fmt(t.y)} Tm " if i == 0 else "")
+                + f"{_pdf_string(r.text)}Tj"
+                for i, r in enumerate(t.runs)
+            )
+            ops.append(f"BT{shows} ET")
 
     if xobjects:
         resources.append("/XObject<<" + "".join(xobjects) + ">>")

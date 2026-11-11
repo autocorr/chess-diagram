@@ -51,7 +51,7 @@ body {
 
 header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 1rem;
   padding: 0.75rem 1.25rem;
   border-bottom: 1px solid var(--line);
@@ -68,6 +68,14 @@ h1 {
 
 #status.error {
   color: var(--error);
+}
+
+/* The switch and the Help link sit on the same centre line: same font and line height,
+   and no padding or border on the button. */
+#theme-toggle,
+#help-link {
+  font: inherit;
+  line-height: 1.4;
 }
 
 #theme-toggle {
@@ -428,6 +436,7 @@ button {
 }
 
 .segmented label {
+  position: relative; /* contains its hidden input, so inputs can't overlap other labels */
   flex-direction: row;
   align-items: center;
   border: 1px solid var(--line);
@@ -450,6 +459,105 @@ button {
   position: absolute;
   opacity: 0;
   pointer-events: none;
+}
+
+.segmented .shape {
+  width: 1em;
+  height: 1em;
+  margin-right: 0.15rem;
+}
+
+/* Annotation colours, as exported (annotations.py). The board draws them with a white
+   outline, but the swatches show just the colour. */
+.swatch {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 2px;
+  margin-right: 0.15rem;
+  outline: 1px solid var(--line);
+}
+
+.swatch[data-color="black"] {
+  background: #000;
+}
+
+.swatch[data-color="gray"] {
+  background: #808080;
+}
+
+.swatch[data-color="vermilion"] {
+  background: #d55e00;
+}
+
+.swatch[data-color="blue"] {
+  background: #0072b2;
+}
+
+.swatch[data-color="green"] {
+  background: #009e73;
+}
+
+/* The annotation list: a scrolling gutter of chips, each removing its annotation. */
+.annotation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-height: 2.1rem;
+  max-height: 8rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+.annotation-list li.muted {
+  padding: 0.15rem 0.25rem;
+}
+
+.annotation-list button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.annotation-list .swatch {
+  margin-right: 0;
+}
+
+.annotation-list .remove {
+  color: var(--muted);
+}
+
+.annotation-list button:hover,
+.annotation-list button:focus-visible {
+  border-color: var(--error);
+}
+
+.annotation-list button:hover .label {
+  text-decoration: line-through;
+}
+
+.annotation-list button:hover .remove,
+.annotation-list button:focus-visible .remove {
+  color: var(--error);
+}
+
+.format button {
+  min-width: 2rem;
+}
+
+.format .muted {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
 }
 
 .glyphs {

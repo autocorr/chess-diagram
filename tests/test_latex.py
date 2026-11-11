@@ -210,6 +210,27 @@ def test_route_b_draws_the_same_as_route_a(tmp_path: Path) -> None:
 
 
 @tool("lualatex")
+def test_captions_above_markup_and_annotations_compile(tmp_path: Path) -> None:
+    opts = RenderOptions(
+        caption_above=["<i>J. Smith</i>", "The Problemist 2024"],
+        caption=["<b>#2</b> [set play]"],
+        piece_count=True,
+        annotations=[
+            "arrow:e2-e4",
+            "circle:d1:vermilion",
+            "cross:c8:blue",
+            "square:a1:gray",
+            "triangle:h8",
+            "circle:e8:green",
+        ],
+    )
+    route_a = render_tex("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", opts)
+    compile_tex("lualatex", PREAMBLE % "gcsnippet" + route_a + "\n\\end{document}\n", tmp_path, "a")
+    route_b = r"\gcdiagram[caption above={\textit{J. Smith}}, caption={\#2}, count]{8/8}"
+    compile_tex("lualatex", PREAMBLE % "gcdiagram" + route_b + "\n\\end{document}\n", tmp_path, "b")
+
+
+@tool("lualatex")
 def test_route_b_reports_fen_errors(tmp_path: Path) -> None:
     source = PREAMBLE % "gcdiagram" + "\\gcdiagram{8/7}\n\\end{document}\n"
     with pytest.raises(AssertionError, match="rank 2 from the top has 7 squares"):

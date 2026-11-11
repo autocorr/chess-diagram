@@ -24,7 +24,10 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Extended FEN: {Q90} rotated piece (0-315 in steps of 45), {=Q} neutral, "
             "{~Q} chameleon, {!N90} mirrored knight, {@Star}/{@star} white/black special, "
-            "'.' hole, '*' wall. Quote the FEN in the shell."
+            "'.' hole, '*' wall. Quote the FEN in the shell. Captions may use "
+            "<b>bold</b> and <i>italic</i>. Annotations are KIND:SQUARE[:COLOR] or "
+            "arrow:FROM-TO[:COLOR], with KIND one of circle, cross, square, triangle, dot and "
+            "COLOR one of black (default, outlined in white), gray, vermilion, blue, green."
         ),
     )
     p.add_argument("fen", nargs="?", help="extended FEN (only the board field is used)")
@@ -32,8 +35,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-f", "--format", choices=FORMATS, help="output format (default: from -o)")
     p.add_argument("-b", "--border", choices=get_args(BorderStyle), default="single")
     p.add_argument("-c", "--caption", action="append", default=[], help="caption line (repeat)")
+    p.add_argument(
+        "-C", "--caption-above", action="append", default=[], help="line above the board (repeat)"
+    )
     p.add_argument("-n", "--count", action="store_true", help="add the (white+black) count")
     p.add_argument("-a", "--arrow", action="append", default=[], help="arrow such as e2-e4")
+    p.add_argument(
+        "-m", "--mark", action="append", default=[], help="annotation such as circle:e4:blue"
+    )
     p.add_argument("--wall", choices=get_args(WallStyle), default="solid")
     p.add_argument("-s", "--square-size", type=float, default=20.0, help="points per square")
     p.add_argument("--padding", type=float, default=0.0, help="margin in points")
@@ -74,6 +83,8 @@ def main(argv: list[str] | None = None) -> int:
             square_size=args.square_size,
             border=args.border,
             caption=args.caption,
+            caption_above=args.caption_above,
+            annotations=args.mark,
             piece_count=args.count,
             arrows=args.arrow,
             wall=args.wall,

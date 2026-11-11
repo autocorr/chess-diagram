@@ -75,17 +75,37 @@
     #3\pgfusepath{fill}%
   \end{pgfscope}}
 
-% \gcbox{width}{height}{body}{caption lines separated by \\}{piece count}
-\newcommand\gcbox[5]{%
+% Annotations (arrows, circles, crosses, squares, triangles), each one filled path:
+% \gcmark{RRGGBB}{halo}{\gcm{x}{y}\gcl{x}{y}\gcq{cx}{cy}{x}{y}...\gcz}
+% A halo above zero first strokes the path in white that wide (in squares), giving
+% the mark a white outline.
+\def\gcq#1#2#3#4{%
+  \pgfpathquadraticcurveto{\pgfqpoint{#1\gcsquare}{#2\gcsquare}}{\pgfqpoint{#3\gcsquare}{#4\gcsquare}}}
+\def\gcmark#1#2#3{%
+  \begin{pgfscope}%
+    \ifdim#2\gcsquare>\z@
+      \pgfsetstrokecolor{white}%
+      \pgfsetlinewidth{#2\gcsquare}%
+      \pgfsetroundjoin
+      #3\pgfusepath{stroke}%
+    \fi
+    \definecolor{gc@mark}{HTML}{#1}%
+    \pgfsetfillcolor{gc@mark}%
+    #3\pgfusepath{fill}%
+  \end{pgfscope}}
+
+% \gcbox[caption above]{width}{height}{body}{caption lines separated by \\}{piece count}
+\newcommand\gcbox[6][]{%
   \vbox{%
+    \gc@above{#2}{#1}%
     \hbox{%
       \fontsize{\the\gcsquare}{\the\gcsquare}\selectfont
       \begin{pgfpicture}%
-        \pgfpathrectangle{\pgfpointorigin}{\pgfqpoint{#1\gcsquare}{#2\gcsquare}}%
+        \pgfpathrectangle{\pgfpointorigin}{\pgfqpoint{#2\gcsquare}{#3\gcsquare}}%
         \pgfusepath{use as bounding box}%
-        \begin{pgfinterruptboundingbox}#3\end{pgfinterruptboundingbox}%
+        \begin{pgfinterruptboundingbox}#4\end{pgfinterruptboundingbox}%
       \end{pgfpicture}}%
-    \gc@caption{#1}{#4}{#5}}}
+    \gc@caption{#2}{#5}{#6}}}
 
 % The caption is set ragged-right across the diagram's width, and the piece count
 % flush right on its first line. \parshape shortens only that first line, by the count
@@ -95,17 +115,26 @@
 \def\gc@cr{\@ifstar\gc@xcr\gc@xcr}
 \def\gc@xcr{\@ifnextchar[\gc@ycr{\gc@ycr[\z@]}}
 \def\gc@ycr[#1]{\par\vskip#1\relax\leavevmode}
+\def\gc@captionsetup#1{%
+  \hsize=#1\gcsquare
+  \gccaptionfont
+  \raggedright
+  \parindent=\z@ \parskip=\z@
+  \everypar{\strut}%
+  \let\\\gc@cr}
+% The caption above the board: ragged-right across the diagram's width, no count.
+\def\gc@above#1#2{%
+  \def\gc@tmp{#2}%
+  \ifx\gc@tmp\@empty\else
+    \vbox{\gc@captionsetup{#1}\leavevmode#2\par}%
+    \nointerlineskip\vskip\gccaptiongap
+  \fi}
 \def\gc@caption#1#2#3{%
   \def\gc@tmp{#2#3}%
   \ifx\gc@tmp\@empty\else
     \nointerlineskip\vskip\gccaptiongap
     \vbox{%
-      \hsize=#1\gcsquare
-      \gccaptionfont
-      \raggedright
-      \parindent=\z@ \parskip=\z@
-      \everypar{\strut}%
-      \let\\\gc@cr
+      \gc@captionsetup{#1}%
       \setbox\gc@countbox=\hbox{#3}%
       \dimen@=\hsize
       \ifdim\wd\gc@countbox>\z@

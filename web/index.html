@@ -40,7 +40,10 @@
           <b>Figure</b>: its colour, its variant (plain, chameleon or mirrored) and its rotation.</li>
         <li><b>Erase</b>, <b>Hole</b>, <b>Wall</b>: click a square to empty it, remove it from the
           board, or block it.</li>
-        <li><b>Arrow</b>: drag from one square to another.</li>
+        <li><b>Annotate</b>: drag from one square to another for an arrow, or click a square for the
+          circle, cross, square, triangle or dot chosen under <b>Annotation</b>, in the chosen colour. Doing
+          the same again removes it; with another colour selected, it changes colour instead. Click an
+          annotation in the list under <b>Annotation</b> to remove just that one.</li>
         <li>Drag a figure to move it. Right-click a square to empty it.</li>
         <li>With the pointer over a square: <kbd>R</kbd> rotates the figure 45° clockwise,
           <kbd>Shift</kbd>+<kbd>R</kbd> anticlockwise, <kbd>Del</kbd> empties the square.</li>
@@ -63,6 +66,11 @@
           <tr><td><code>12</code></td><td>multi-digit empty runs, for boards up to 26×26</td></tr>
         </tbody>
       </table>
+
+      <h3>Captions</h3>
+      <p>Captions go above and below the board, left-aligned, and wrap to the diagram's width.
+        Write <code>&lt;b&gt;bold&lt;/b&gt;</code> and <code>&lt;i&gt;italic&lt;/i&gt;</code>, or select
+        text and press <b>B</b> or <b>I</b> (<kbd>Ctrl</kbd>+<kbd>B</kbd>, <kbd>Ctrl</kbd>+<kbd>I</kbd>).</p>
 
       <h3>Export</h3>
       <p><b>SVG</b> and <b>PDF</b> download the diagram as shown. <b>TeX</b> downloads a snippet
@@ -110,7 +118,30 @@
             <label><input type="radio" name="tool" value="erase" />Erase</label>
             <label><input type="radio" name="tool" value="hole" />Hole</label>
             <label><input type="radio" name="tool" value="wall" />Wall</label>
-            <label><input type="radio" name="tool" value="arrow" />Arrow</label>
+            <label><input type="radio" name="tool" value="annotate" />Annotate</label>
+          </div>
+        </fieldset>
+
+        <fieldset id="annotation">
+          <legend>Annotation</legend>
+          <div class="segmented" aria-label="Shape">
+            <label><input type="radio" name="mark-kind" value="arrow" checked /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13 11.5 4.5M7 4h5v5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Arrow</label>
+            <label><input type="radio" name="mark-kind" value="circle" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Circle</label>
+            <label><input type="radio" name="mark-kind" value="cross" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 3.5 9 9m0-9-9 9" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Cross</label>
+            <label><input type="radio" name="mark-kind" value="square" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Square</label>
+            <label><input type="radio" name="mark-kind" value="triangle" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5 13.5 12.5h-11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Triangle</label>
+            <label><input type="radio" name="mark-kind" value="dot" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.5" fill="currentColor"/></svg>Dot</label>
+          </div>
+          <div class="segmented" aria-label="Colour">
+            <label><input type="radio" name="mark-color" value="black" checked /><span class="swatch" data-color="black"></span>Black</label>
+            <label><input type="radio" name="mark-color" value="gray" /><span class="swatch" data-color="gray"></span>Gray</label>
+            <label><input type="radio" name="mark-color" value="vermilion" /><span class="swatch" data-color="vermilion"></span>Orange</label>
+            <label><input type="radio" name="mark-color" value="blue" /><span class="swatch" data-color="blue"></span>Blue</label>
+            <label><input type="radio" name="mark-color" value="green" /><span class="swatch" data-color="green"></span>Green</label>
+          </div>
+          <ul id="annotations" data-testid="annotations" class="annotation-list" aria-label="Annotations (click one to remove it)"></ul>
+          <div class="row">
+            <button id="clear-annotations" type="button">Clear annotations</button>
           </div>
         </fieldset>
 
@@ -151,13 +182,15 @@
               <option value="box">Box</option>
             </select>
           </label>
-          <label>Caption <textarea id="caption" data-testid="caption" rows="2" placeholder="#2"></textarea></label>
+          <label>Caption above <textarea id="caption-above" class="caption" data-testid="caption-above" rows="2" placeholder="J. Smith, The Problemist 2024"></textarea></label>
+          <label>Caption below <textarea id="caption" class="caption" data-testid="caption" rows="2" placeholder="#2"></textarea></label>
+          <div class="row format">
+            <button id="format-bold" type="button" aria-label="Bold" title="Bold: wrap the selected caption text in &lt;b&gt;…&lt;/b&gt; (Ctrl+B)"><b>B</b></button>
+            <button id="format-italic" type="button" aria-label="Italic" title="Italic: wrap the selected caption text in &lt;i&gt;…&lt;/i&gt; (Ctrl+I)"><i>I</i></button>
+            <span class="muted">&lt;b&gt;bold&lt;/b&gt;, &lt;i&gt;italic&lt;/i&gt;</span>
+          </div>
           <label class="check"><input id="count" data-testid="count" type="checkbox" />Piece count</label>
           <label>Square size (pt) <input id="square-size" type="number" min="4" max="72" step="1" /></label>
-          <div class="row">
-            <span id="arrows" data-testid="arrows" class="muted"></span>
-            <button id="clear-arrows" type="button">Clear arrows</button>
-          </div>
         </fieldset>
 
         <fieldset>

@@ -122,10 +122,12 @@ chess-diagram-generator/
 │   ├── catalog.py                  # loads catalog, resolves (Figure, Shade) → Glyph
 │   ├── fen.py                      # extended-FEN tokenizer/parser/serializer
 │   ├── board.py                    # board model (cells, figures, shades)
-│   ├── geometry.py                 # layout: cell rects, border segments, hole outlines, arrows
-│   ├── options.py                  # RenderOptions (border style, caption, arrows, scale, …)
+│   ├── geometry.py                 # layout: cell rects, border segments, hole outlines, arrows, marks
+│   ├── options.py                  # RenderOptions (border style, captions, annotations, scale, …)
+│   ├── annotations.py              # annotation kinds, colours and their text form
+│   ├── markup.py                   # <b>/<i> caption markup → styled runs
 │   ├── svgpath.py                  # outline parsing; compact SVG and cubic PDF encodings
-│   ├── textmetrics.py              # Helvetica widths for caption layout
+│   ├── textmetrics.py              # Helvetica and Helvetica-Bold widths for caption layout
 │   ├── editor.py                   # JSON-friendly operations for the browser editor
 │   ├── render/
 │   │   ├── svg.py
@@ -327,11 +329,24 @@ is 2000, y points down) and is scaled at output time. A `Layout` contains:
   is drawn with the framed `special:box:none` glyph instead.
 - **`arrows`:** 7-point polygons from the centre of the start square to the tip at the
   centre of the target square.
-- **`texts`:** caption lines left-aligned under the board, plus the optional piece
-  count right-aligned on the first line. The caption wraps at spaces to the diagram's
-  width, and its first line stops one caption em (`COUNT_GAP`) short of the count, so
-  the two never collide. Only a word too long for any line widens the diagram. Widths
-  use Helvetica metrics (`textmetrics.py`).
+- **`marks`:** annotations (`annotations.py`), each a filled path with a fill colour and
+  a white halo stroked behind it, so marks stay visible on dark squares and black pieces. Arrows use the
+  arrow polygon. Circles (eight quadratic Béziers), squares and triangles are rings: an
+  outer contour and an inner one wound the other way, so the nonzero fill rule that
+  SVG, PDF and PGF all default to leaves the middle open. A cross is one 12-point
+  polygon, and a dot a solid circle a fifth of a square across. The colours are black, gray `#808080`, and the Okabe-Ito vermilion `#D55E00`
+  (labelled "Orange" in the editor), blue `#0072B2` and bluish green `#009E73`, which
+  colour-blind readers can still tell apart. The text form is
+  `kind:square[:colour]` or `arrow:from-to[:colour]`, and black is left out.
+- **`texts`:** lines of styled runs. `caption_above` lines go above the board and
+  `caption` lines under it, all left-aligned, plus the optional piece count
+  right-aligned on the first line below. Captions wrap at spaces to the diagram's
+  width, and the first line below stops one caption em (`COUNT_GAP`) short of the
+  count, so the two never collide. Only a word too long for any line widens the
+  diagram. `<b>` and `<i>` markup (`markup.py`) splits a line into runs. Tags were
+  chosen over `*…*` because stipulations use `*` for set play. Widths use Helvetica
+  and Helvetica-Bold metrics (`textmetrics.py`); the oblique fonts have the same
+  widths as the upright ones.
 
 The border options are:
 
@@ -365,7 +380,9 @@ lines, so they can't depend on stroke-join settings.
 - Options: `xlink=True` writes `xlink:href` for SVG 1.1 tools (the Inkscape here needs
   it); `annotate=True` adds `data-square="e4"` to each `<use>` for scripting and the web
   editor.
-- Captions use `font-family="Helvetica,Arial,sans-serif"`.
+- Captions use `font-family="Helvetica,Arial,sans-serif"`. A line with bold or italic
+  runs puts each in a `<tspan>`, and `xml:space="preserve"` keeps the spaces between them.
+- Each annotation is a `<path>`, preceded by the same path stroked in white.
 - Size: a full starting position is about 26 KB. Most of that is the dark-square hatching,
   which the font repeats inside every piece-on-dark glyph.
 
@@ -378,7 +395,9 @@ lines, so they can't depend on stroke-join settings.
 - The page content starts with a single `cm` that maps font units (y down) to points
   (y up). It's written at full precision; two-decimal rounding broke non-20 pt sizes,
   and a regression test now covers that.
-- Captions use base-14 Helvetica with WinAnsiEncoding, which is never embedded. Arrow
+- Captions use base-14 Helvetica with WinAnsiEncoding, which is never embedded, plus
+  Helvetica-Bold, -Oblique and -BoldOblique for styled runs (only the styles used get
+  a font resource). A styled line is one `BT … ET` that switches fonts with `Tf`. Arrow
   opacity uses an ExtGState.
 - The page is cropped exactly to the diagram plus padding, so it can be included as-is in
   other documents. Colours are `#rgb`, `#rrggbb`, `white` or `black`.
@@ -394,8 +413,13 @@ in `latex/gcsnippet.sty`:
 \gcrank{.05}{4.3}{\gcD{£0¤£¤£}\gcY{0}}%             a run per font
 \gcrects{\gcr{1.05}{3.05}{1}{1}\gcr{0}{6.05}{6.1}{.05}…}%   borders and walls
 \gcarrows{000000}{0.6}{\gcm{x}{y}\gcl{x}{y}…\gcz}%  arrows (colour, opacity, polygons)
+\gcmark{D55E00}{0}{\gcm{x}{y}\gcq{cx}{cy}{x}{y}…\gcz}%  one annotation (colour, halo, path)
 }{\#2}{(3+2)}%                                       caption lines (\\-separated), count
 ```
+
+With a caption above the board, the call starts `\gcbox[{lines}]{…}`. Caption markup
+becomes `\textbf` and `\textit`. A `\gcmark` halo above zero strokes the path in white
+at that width (in squares) before filling it.
 
 - **Glyphs as text:** every glyph code is a digit, an ASCII letter or a Latin-1 symbol,
   none of which are special to TeX, so a rank is plain UTF-8 text in the right font.
@@ -432,8 +456,9 @@ in `latex/gcsnippet.sty`:
 ```
 
 - **Keys** (`l3keys`, per diagram or in `\gcdiagramsetup`): `size`, `border`, `wall`,
-  `caption` (LaTeX text, with `\\` between lines), `count`, `arrows`, `arrow color`
-  (`RRGGBB`) and `arrow opacity`.
+  `caption` and `caption above` (LaTeX text, with `\\` between lines), `count`,
+  `arrows`, `arrow color` (`RRGGBB`) and `arrow opacity`. Annotations (circles,
+  crosses and so on) are not ported to Lua yet; route A snippets can carry them.
 - **Parsing:** the FEN reaches Lua as a string through `\detokenize`/`\lua_escape:e`.
   `gcdiagram.lua` ports `fen.py`, the layout from `geometry.py` (frame, hole borders
   with merging, arrows) and the emitter from `render/tex.py`. It returns
@@ -519,7 +544,11 @@ as the CLI writes them.
     Mirrored at 0° would leave nothing selectable, since mirrored knights only exist at
     90°, 180° and 270°.
   - Tools: place (clicking the same figure again removes it), erase, hole, wall and
-    arrow (drag from one square to another; doing it again removes the arrow).
+    annotate. Annotate draws an arrow on a drag, and on a click the circle, cross,
+    square, triangle or dot chosen in the Annotation section, in its chosen colour. Doing
+    it again removes it, or recolours it if another colour is chosen. Choosing a
+    shape or colour selects the tool. Old links with `arrow=e2-e4` load as black arrow
+    annotations.
   - Drag to move. Right-click or <kbd>Del</kbd> clears; <kbd>R</kbd> and
     <kbd>Shift</kbd>+<kbd>R</kbd> rotate the piece under the pointer.
   - Touch: tap places and dragging moves (pointer events throughout). Touch has no hover,
@@ -537,7 +566,9 @@ as the CLI writes them.
     before the first paint. The board and palette glyphs are dimmed with a CSS
     `brightness()` filter so their white doesn't glare; this is display-only, and exports
     (rendered by Python) are unchanged, which a test checks against the CLI.
-  - Board size, border, wall style, caption, piece count and square size.
+  - Board size, border, wall style, captions above and below (B and I buttons, and
+    <kbd>Ctrl</kbd>+<kbd>B</kbd>/<kbd>I</kbd>, wrap the selection in `<b>`/`<i>` or
+    unwrap it), piece count and square size.
   - FEN field: validated as you type and normalised when you leave it.
   - URL hash state, so a link or a reload restores the diagram.
   - SVG/PDF/TeX download.

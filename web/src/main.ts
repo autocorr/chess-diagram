@@ -10,14 +10,24 @@ const KINDS = ["K", "Q", "R", "B", "N", "P"];
 const ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SVG_NS = "http://www.w3.org/2000/svg";
 const LONG_PRESS_MS = 450;
+// Annotation colours shown under another name than their key (gcdiagram/annotations.py).
+const COLOR_LABELS: Record<string, string> = { vermilion: "orange" };
 
 interface DiagramOptions extends Options {
   border: string;
   wall: string;
   caption: string[];
+  caption_above: string[];
   piece_count: boolean;
-  arrows: string[];
+  annotations: string[]; // "circle:e4", "arrow:e2-e4:blue" (see gcdiagram/annotations.py)
   square_size: number;
+}
+
+/** An annotation: its kind, square(s) ("e4", or "e2-e4" for an arrow) and colour. */
+interface Mark {
+  kind: string;
+  squares: string;
+  color: string;
 }
 
 interface State {
@@ -42,6 +52,9 @@ let color = "white";
 let variant = "plain";
 let angle = 0;
 let selection: Selection = { type: "piece", kind: "Q" };
+let markKind = "arrow";
+let markColor = "black";
+let captionArea: HTMLTextAreaElement | null = null; // the caption the B and I buttons format
 let hover: string | null = null;
 let pressed: string | null = null;
 let pointerType = "mouse"; // of the last pointerdown on the board
@@ -82,8 +95,10 @@ function loadHash(): State {
       border: p.get("border") ?? "single",
       wall: p.get("wall") ?? "solid",
       caption: p.getAll("caption"),
+      caption_above: p.getAll("above"),
       piece_count: p.get("count") === "1",
-      arrows: p.getAll("arrow"),
+      // Links from before annotations had arrow=e2-e4.
+      annotations: [...p.getAll("arrow").map((a) => `arrow:${a}`), ...p.getAll("mark")],
       square_size: Number(p.get("size") ?? 20) || 20,
     },
   };
@@ -94,9 +109,10 @@ function saveHash(): void {
   const o = state.options;
   if (o.border !== "single") p.set("border", o.border);
   if (o.wall !== "solid") p.set("wall", o.wall);
+  for (const line of o.caption_above) p.append("above", line);
   for (const line of o.caption) p.append("caption", line);
   if (o.piece_count) p.set("count", "1");
-  for (const arrow of o.arrows) p.append("arrow", arrow);
+  for (const mark of o.annotations) p.append("mark", mark);
   if (o.square_size !== 20) p.set("size", String(o.square_size));
   history.replaceState(null, "", `#${p}`);
 }
@@ -167,11 +183,47 @@ function syncControls(): void {
   set("border", o.border);
   set("wall", o.wall);
   set("caption", o.caption.join("\n"));
+  set("caption-above", o.caption_above.join("\n"));
   set("square-size", String(o.square_size));
   $<HTMLInputElement>("count").checked = o.piece_count;
-  $("arrows").textContent = o.arrows.length
-    ? `Arrows: ${o.arrows.join(", ")}`
-    : "No arrows (drag with the Arrow tool)";
+  showAnnotations();
+}
+
+/** The annotation list: one button per annotation, which removes it. */
+function showAnnotations(): void {
+  const list = $<HTMLUListElement>("annotations");
+  const marks = state.options.annotations.map(parseMark);
+  list.replaceChildren(
+    ...marks.map((m, i) => {
+      const name = `${m.kind} ${m.squares}${m.color === "black" ? "" : ` (${COLOR_LABELS[m.color] ?? m.color})`}`;
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.index = String(i);
+      button.title = "Remove";
+      button.setAttribute("aria-label", `Remove ${name}`);
+      const swatch = document.createElement("span");
+      swatch.className = "swatch";
+      swatch.dataset.color = m.color;
+      const label = document.createElement("span");
+      label.className = "label";
+      label.textContent = name;
+      const remove = document.createElement("span");
+      remove.className = "remove";
+      remove.setAttribute("aria-hidden", "true");
+      remove.textContent = "×";
+      button.append(swatch, label, remove);
+      item.append(button);
+      return item;
+    }),
+  );
+  if (marks.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "muted";
+    empty.textContent = "No annotations";
+    list.append(empty);
+  }
+  $<HTMLButtonElement>("clear-annotations").disabled = marks.length === 0;
 }
 
 // --- Squares ----------------------------------------------------------------------------
@@ -286,15 +338,14 @@ function click(square: string): void {
     void edit(square, current === "." ? "" : ".");
   } else if (tool === "wall") {
     void edit(square, current === "*" ? "" : "*");
+  } else if (tool === "annotate" && markKind !== "arrow") {
+    toggleMark(markKind, square);
   }
 }
 
 function drag(from: string, to: string): void {
-  if (tool === "arrow") {
-    const spec = `${from}-${to}`;
-    const arrows = state.options.arrows;
-    state.options.arrows = arrows.includes(spec) ? arrows.filter((a) => a !== spec) : [...arrows, spec];
-    void enqueue(refresh);
+  if (tool === "annotate") {
+    toggleMark("arrow", `${from}-${to}`);
   } else if (cellAt(from) !== "") {
     void enqueue(async () => apply(await py.move(state.fen, from, to)));
   }
@@ -304,11 +355,65 @@ function rotate(square: string, step: number): void {
   void enqueue(async () => apply(await py.rotate(state.fen, square, step)));
 }
 
-/** Keep only arrows whose squares exist on a width x height board. */
-function arrowsWithin(width: number, height: number): string[] {
-  return state.options.arrows.filter((spec) =>
-    (spec.match(/[a-z]\d+/g) ?? []).every((sq) => FILES.indexOf(sq[0]!) < width && Number(sq.slice(1)) <= height),
+// --- Annotations ------------------------------------------------------------------------
+
+function parseMark(spec: string): Mark {
+  const [kind = "", squares = "", color = "black"] = spec.split(":");
+  return { kind, squares, color };
+}
+
+function markSpec(m: Mark): string {
+  return `${m.kind}:${m.squares}${m.color === "black" ? "" : `:${m.color}`}`;
+}
+
+/**
+ * Add an annotation in the selected colour. If the same kind is already on the same
+ * square(s), remove it, or recolour it when another colour is selected.
+ */
+function toggleMark(kind: string, squares: string): void {
+  const marks = state.options.annotations.map(parseMark);
+  const i = marks.findIndex((m) => m.kind === kind && m.squares === squares);
+  if (i < 0) marks.push({ kind, squares, color: markColor });
+  else if (marks[i]!.color === markColor) marks.splice(i, 1);
+  else marks[i] = { kind, squares, color: markColor };
+  state.options.annotations = marks.map(markSpec);
+  void enqueue(refresh);
+}
+
+/** Keep only annotations whose squares exist on a width x height board. */
+function annotationsWithin(width: number, height: number): string[] {
+  return state.options.annotations.filter((spec) =>
+    (parseMark(spec).squares.match(/[a-z]\d+/g) ?? []).every(
+      (sq) => FILES.indexOf(sq[0]!) < width && Number(sq.slice(1)) <= height,
+    ),
   );
+}
+
+function selectTool(value: string): void {
+  tool = value;
+  (document.querySelector(`input[name="tool"][value="${value}"]`) as HTMLInputElement).checked = true;
+}
+
+// --- Caption formatting -----------------------------------------------------------------
+
+/**
+ * Wrap the selected caption text in <b> or <i>, or unwrap it if it is already wrapped.
+ * The tags stay outside the selection, so B then I gives bold italic.
+ */
+function format(area: HTMLTextAreaElement, tag: "b" | "i"): void {
+  const open = `<${tag}>`;
+  const close = `</${tag}>`;
+  const { selectionStart: start, selectionEnd: end, value } = area;
+  const inner = value.slice(start, end);
+  if (value.slice(start - open.length, start) === open && value.slice(end, end + close.length) === close) {
+    area.setRangeText(inner, start - open.length, end + close.length);
+    area.setSelectionRange(start - open.length, end - open.length);
+  } else {
+    area.setRangeText(open + inner + close, start, end);
+    area.setSelectionRange(start + open.length, end + open.length);
+  }
+  area.focus();
+  area.dispatchEvent(new Event("input"));
 }
 
 // --- Palette ----------------------------------------------------------------------------
@@ -396,8 +501,7 @@ function paletteButton(testid: string, title: string, select: Selection, data: R
   b.title = title;
   b.addEventListener("click", () => {
     selection = select;
-    tool = "place";
-    (document.querySelector('input[name="tool"][value="place"]') as HTMLInputElement).checked = true;
+    selectTool("place");
     void updatePalette();
   });
   return b;
@@ -609,20 +713,20 @@ function wire(): void {
       setStatus("Boards can be 1 to 26 squares in each direction", true);
       return;
     }
-    state.options.arrows = arrowsWithin(width, height);
+    state.options.annotations = annotationsWithin(width, height);
     void enqueue(async () => apply(await py.resize(state.fen, width, height)));
   };
   $("files").addEventListener("change", resize);
   $("ranks").addEventListener("change", resize);
   $("start").addEventListener("click", () => {
     state.fen = START;
-    state.options.arrows = [];
+    state.options.annotations = [];
     void enqueue(refresh);
   });
   $("clear").addEventListener("click", () => {
     if (!view) return;
     state.fen = Array(view.ranks).fill(String(view.files)).join("/");
-    state.options.arrows = [];
+    state.options.annotations = [];
     void enqueue(refresh);
   });
 
@@ -630,12 +734,49 @@ function wire(): void {
   bindOption("wall", (el) => (state.options.wall = el.value));
   bindOption("count", (el) => (state.options.piece_count = el.checked));
   bindOption("square-size", (el) => (state.options.square_size = Number(el.value) || 20));
-  $<HTMLTextAreaElement>("caption").addEventListener("input", (e) => {
-    state.options.caption = (e.currentTarget as HTMLTextAreaElement).value.split("\n");
+  for (const [id, key] of [
+    ["caption", "caption"],
+    ["caption-above", "caption_above"],
+  ] as const) {
+    const area = $<HTMLTextAreaElement>(id);
+    area.addEventListener("input", () => {
+      state.options[key] = area.value.split("\n");
+      void enqueue(refresh);
+    });
+    area.addEventListener("focus", () => (captionArea = area));
+    area.addEventListener("keydown", (e) => {
+      const key = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (key === "b" || key === "i")) {
+        e.preventDefault();
+        format(area, key);
+      }
+    });
+  }
+  for (const [id, tag] of [
+    ["format-bold", "b"],
+    ["format-italic", "i"],
+  ] as const) {
+    const button = $(id);
+    // Keep the focus, and so the selection, in the caption.
+    button.addEventListener("mousedown", (e) => e.preventDefault());
+    button.addEventListener("click", () => format(captionArea ?? $<HTMLTextAreaElement>("caption"), tag));
+  }
+
+  bindRadios("mark-kind", (v) => (markKind = v));
+  bindRadios("mark-color", (v) => (markColor = v));
+  // Choosing a shape or colour, even the one already chosen, switches to the Annotate tool.
+  $("annotation").addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).matches('input[name^="mark-"]')) selectTool("annotate");
+  });
+  $("annotations").addEventListener("click", (e) => {
+    const button = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-index]");
+    if (!button) return;
+    const index = Number(button.dataset.index);
+    state.options.annotations = state.options.annotations.filter((_, i) => i !== index);
     void enqueue(refresh);
   });
-  $("clear-arrows").addEventListener("click", () => {
-    state.options.arrows = [];
+  $("clear-annotations").addEventListener("click", () => {
+    state.options.annotations = [];
     void enqueue(refresh);
   });
 

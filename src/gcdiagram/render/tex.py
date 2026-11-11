@@ -17,8 +17,9 @@ from dataclasses import replace
 from ..board import Board
 from ..catalog import Catalog, Glyph
 from ..geometry import U, layout
+from ..markup import parse_markup
 from ..options import RenderOptions
-from ..svgpath import fmt
+from ..svgpath import Segment, fmt
 from . import prepare
 from .pdf import parse_color
 
@@ -40,6 +41,20 @@ _TEX_SPECIALS = {
 
 def tex_escape(text: str) -> str:
     return "".join(_TEX_SPECIALS.get(ch, ch) for ch in text)
+
+
+def caption_tex(line: str) -> str:
+    r"""One caption line as LaTeX: special characters escaped, and <b>/<i> markup as
+    \textbf and \textit."""
+    out = []
+    for run in parse_markup(line):
+        text = tex_escape(run.text)
+        if run.italic:
+            text = rf"\textit{{{text}}}"
+        if run.bold:
+            text = rf"\textbf{{{text}}}"
+        out.append(text)
+    return "".join(out)
 
 
 def num(units: float) -> str:
@@ -71,7 +86,9 @@ def tex_parts(
 ) -> tuple[str, str, str, str]:
     """(width, height, body, piece count) as they appear in the \\gcbox call."""
     board, opts, cat = prepare(board, options, catalog)
-    lay = layout(board, replace(opts, caption=(), piece_count=False, padding=0), cat)
+    lay = layout(
+        board, replace(opts, caption=(), caption_above=(), piece_count=False, padding=0), cat
+    )
     height = lay.height
 
     lines = []
@@ -95,16 +112,38 @@ def tex_parts(
         )
         rgb = "".join(f"{round(v * 255):02X}" for v in parse_color(opts.arrow_color))
         lines.append(rf"\gcarrows{{{rgb}}}{{{opts.arrow_opacity:g}}}{{{paths}}}%")
+    for mark in lay.marks:
+        rgb = "".join(f"{round(v * 255):02X}" for v in parse_color(mark.fill))
+        lines.append(rf"\gcmark{{{rgb}}}{{{num(mark.halo)}}}{{{_tex_path(mark.path, height)}}}%")
 
     count = board.piece_count_label() if opts.piece_count else ""
     return num(lay.width), num(height), "\n".join(lines), count
 
 
+def _tex_path(path: list[Segment], height: float) -> str:
+    out = []
+    for seg in path:
+        if seg[0] == "M":
+            out.append(rf"\gcm{{{num(seg[1])}}}{{{num(height - seg[2])}}}")
+        elif seg[0] == "L":
+            out.append(rf"\gcl{{{num(seg[1])}}}{{{num(height - seg[2])}}}")
+        elif seg[0] == "Q":
+            _, qx, qy, x, y = seg
+            out.append(rf"\gcq{{{num(qx)}}}{{{num(height - qy)}}}{{{num(x)}}}{{{num(height - y)}}}")
+        else:
+            out.append(r"\gcz")
+    return "".join(out)
+
+
 def render_tex(
     board: Board | str, options: RenderOptions | None = None, *, catalog: Catalog | None = None
 ) -> str:
-    r"""A \gcbox{width}{height}{body}{caption}{count} call for latex/gcsnippet.sty."""
+    r"""A \gcbox[caption above]{width}{height}{body}{caption}{count} call for
+    latex/gcsnippet.sty. The optional argument is only written when there is a caption
+    above the board."""
     opts = options or RenderOptions()
     width, height, body, count = tex_parts(board, opts, catalog=catalog)
-    caption = r"\\".join(tex_escape(line) for line in opts.caption)
-    return f"\\gcbox{{{width}}}{{{height}}}{{%\n{body}\n}}{{{caption}}}{{{count}}}%\n"
+    caption = r"\\".join(caption_tex(line) for line in opts.caption)
+    above = r"\\".join(caption_tex(line) for line in opts.caption_above)
+    above = f"[{{{above}}}]" if above else ""
+    return f"\\gcbox{above}{{{width}}}{{{height}}}{{%\n{body}\n}}{{{caption}}}{{{count}}}%\n"
