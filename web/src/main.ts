@@ -500,7 +500,8 @@ function wire(): void {
         link.href = URL.createObjectURL(blob);
         link.download = `diagram.${fmt}`;
         link.click();
-        URL.revokeObjectURL(link.href);
+        // Revoking right away can cancel the download in some browsers.
+        setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
       }),
     );
   }
