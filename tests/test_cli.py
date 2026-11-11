@@ -55,3 +55,9 @@ def test_api_accepts_fen_strings() -> None:
 
     assert render_svg("K").startswith("<svg ")
     assert render_pdf("K", RenderOptions(square_size=10)).startswith(b"%PDF")
+
+
+def test_tex_output(tmp_path: Path) -> None:
+    out = tmp_path / "d.tex"
+    assert main(["K", "-o", str(out), "-c", "#2"]) == 0
+    assert out.read_text().startswith(r"\gcbox{")

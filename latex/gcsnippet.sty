@@ -1,0 +1,96 @@
+% gcsnippet.sty -- drawing primitives for Good Companion (GC2004) chess diagrams.
+%
+% Typesets \gcbox calls written by the gcdiagram Python package (route A) or by
+% gcdiagram.sty (route B, LuaLaTeX). Works with LuaLaTeX and XeLaTeX.
+%
+%   \gcfontpath{<dir>/}   directory containing GC2004D_.TTF, GC2004X_.TTF, GC2004Y_.TTF
+%                         (preamble only; omit if the fonts are installed)
+%   \gcsquaresize{<dim>}  size of one square (default 20pt)
+%   \gccaptionfont        font switch for captions (default \small)
+%
+% Coordinates in \gcbox bodies are numbers of squares, measured from the bottom-left
+% corner of the diagram with y pointing up.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{gcsnippet}[2026/11/10 v0.1 Good Companion chess diagram primitives]
+\RequirePackage{iftex}
+\iftutex\else
+  \PackageError{gcsnippet}{LuaLaTeX or XeLaTeX is required}
+    {The GC TrueType fonts are loaded with fontspec, which needs LuaTeX or XeTeX.}
+\fi
+\RequirePackage{fontspec}
+\RequirePackage{pgf}
+
+\newdimen\gcsquare
+\gcsquare=20pt
+\newcommand\gcsquaresize[1]{\gcsquare=#1\relax}
+\newcommand\gccaptionfont{\small}
+\newcommand\gccaptiongap{.3\gcsquare}
+
+\def\gc@fontpath{}
+\newcommand\gcfontpath[1]{\def\gc@fontpath{#1}}
+\@onlypreamble\gcfontpath
+
+% Kerning must be off: GC2004Y has a kern table, and every glyph has to stay in its
+% cell. The fonts have no ligature tables.
+\def\gc@features{Kerning=Off,Ligatures={NoCommon,NoRequired,NoContextual}}
+\def\gc@loadfont#1#2{%
+  \ifx\gc@fontpath\@empty
+    \expandafter\newfontfamily\expandafter#1\expandafter{#2}[\gc@features]%
+  \else
+    \edef\gc@tmp{\noexpand\newfontfamily\noexpand#1{#2}[Path=\gc@fontpath,\gc@features]}%
+    \gc@tmp
+  \fi}
+\AtBeginDocument{%
+  \gc@loadfont\gc@fontD{GC2004D_.TTF}%
+  \gc@loadfont\gc@fontX{GC2004X_.TTF}%
+  \gc@loadfont\gc@fontY{GC2004Y_.TTF}}
+
+% Glyph runs in each font, and a run member that needs a horizontal fix-up.
+\def\gcD#1{{\gc@fontD#1}}
+\def\gcX#1{{\gc@fontX#1}}
+\def\gcY#1{{\gc@fontY#1}}
+\def\gcfix#1#2{\kern#1\gcsquare#2\kern-#1\gcsquare}
+
+% One rank of glyphs, placed at its left edge and baseline.
+\def\gcrank#1#2#3{%
+  \pgftext[left,base,at={\pgfqpoint{#1\gcsquare}{#2\gcsquare}}]{#3}}
+
+% Filled rectangles (borders, walls): \gcrects{\gcr{x}{y}{w}{h}...}
+\def\gcr#1#2#3#4{%
+  \pgfpathrectangle{\pgfqpoint{#1\gcsquare}{#2\gcsquare}}{\pgfqpoint{#3\gcsquare}{#4\gcsquare}}}
+\def\gcrects#1{#1\pgfusepath{fill}}
+
+% Filled polygons (arrows): \gcarrows{RRGGBB}{opacity}{\gcm{x}{y}\gcl{x}{y}...\gcz...}
+\def\gcm#1#2{\pgfpathmoveto{\pgfqpoint{#1\gcsquare}{#2\gcsquare}}}
+\def\gcl#1#2{\pgfpathlineto{\pgfqpoint{#1\gcsquare}{#2\gcsquare}}}
+\def\gcz{\pgfpathclose}
+\def\gcarrows#1#2#3{%
+  \begin{pgfscope}%
+    \definecolor{gc@arrow}{HTML}{#1}%
+    \pgfsetfillcolor{gc@arrow}%
+    \pgfsetfillopacity{#2}%
+    #3\pgfusepath{fill}%
+  \end{pgfscope}}
+
+% \gcbox{width}{height}{body}{caption lines separated by \\}{piece count}
+\newcommand\gcbox[5]{%
+  \vbox{%
+    \hbox{%
+      \fontsize{\the\gcsquare}{\the\gcsquare}\selectfont
+      \begin{pgfpicture}%
+        \pgfpathrectangle{\pgfpointorigin}{\pgfqpoint{#1\gcsquare}{#2\gcsquare}}%
+        \pgfusepath{use as bounding box}%
+        \begin{pgfinterruptboundingbox}#3\end{pgfinterruptboundingbox}%
+      \end{pgfpicture}}%
+    \gc@caption{#1}{#4}{#5}}}
+
+\def\gc@caption#1#2#3{%
+  \def\gc@tmp{#2#3}%
+  \ifx\gc@tmp\@empty\else
+    \nointerlineskip\vskip\gccaptiongap
+    \hbox to #1\gcsquare{%
+      \gccaptionfont
+      \hss\begin{tabular}[t]{@{}c@{}}#2\end{tabular}\hss
+      \llap{#3}}%
+  \fi}
+\endinput

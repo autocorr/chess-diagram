@@ -12,6 +12,7 @@ from .fen import FenError, figure_token, parse, serialize
 from .options import RenderOptions
 from .render.pdf import render_pdf
 from .render.svg import render_svg
+from .render.tex import render_tex
 
 __all__ = [
     "HOLE",
@@ -30,5 +31,6 @@ __all__ = [
     "parse",
     "render_pdf",
     "render_svg",
+    "render_tex",
     "serialize",
 ]

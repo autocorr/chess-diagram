@@ -12,8 +12,9 @@ from .fen import FenError, parse, serialize
 from .options import BorderStyle, RenderOptions, WallStyle
 from .render.pdf import render_pdf
 from .render.svg import render_svg
+from .render.tex import render_tex
 
-FORMATS = ("svg", "pdf")
+FORMATS = ("svg", "pdf", "tex")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -81,6 +82,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if fmt == "pdf":
             data = render_pdf(board, opts)
+        elif fmt == "tex":
+            data = render_tex(board, opts).encode()
         else:
             data = render_svg(board, opts, id_prefix=args.id_prefix, xlink=args.xlink).encode()
     except ValueError as e:
