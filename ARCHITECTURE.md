@@ -63,11 +63,6 @@ Quirks, which the catalog builder handles (see §4.1):
 - Duplicates are skipped: D 0xAD/0xCC (copies of 0xCB), X 0xC3/0xC4 (copies of D's neutral
   king), and Y 0x4F/0x50/0x55/0x56 (copies of D's squares and single borders).
 
-> **Licensing:** the reference PDF says the GC fonts are "used exclusively for diagrams on
-> www.StrateGems.org". Confirm redistribution rights before publishing the font files with
-> the LaTeX package or serving them to browsers. The outlines in `catalog.json` are derived
-> from the fonts too.
-
 ---
 
 ## 2. Overview

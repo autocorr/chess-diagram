@@ -109,12 +109,13 @@ right-click or <kbd>Del</kbd> to clear, and <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd
 rotate the piece under the pointer. There are also tools for holes, walls and
 annotations (drag between squares for an arrow, or click for a circle, cross, square,
 triangle or dot, in the colour chosen under Annotation). Captions go above and below the
-board; select text and press B or I (or Ctrl+B, Ctrl+I) for bold or italic. The FEN field and the URL stay in sync with the board, and
-SVG/PDF/TeX exports are identical to the CLI's. The editor can also export a PNG at 150,
-300 or 600 dpi, which the browser draws from the SVG; its caption uses the system's
-Helvetica or Arial, and the CLI has no PNG output. Edits to `src/gcdiagram/*.py` reload the
-page. `npm run test:e2e` runs the Playwright tests; the first time, run
-`npx playwright install chromium`.
+board; select text and press B or I (or Ctrl+B, Ctrl+I) for bold or italic. The
+FEN field and the URL stay in sync with the board, and SVG/PDF/TeX exports are
+identical to the CLI's. The editor can also export a PNG at 150, 300 or 600
+dpi, which the browser draws from the SVG; its caption uses the system's
+Helvetica or Arial, and the CLI has no PNG output. Edits to
+`src/gcdiagram/*.py` reload the page. `npm run test:e2e` runs the Playwright
+tests; the first time, run `npx playwright install chromium`.
 
 `npm run build` writes a static site to `web/dist/` (about 14 MB, mostly the Pyodide
 runtime) that any web server can host. `.github/workflows/pages.yml` builds it and
@@ -130,3 +131,7 @@ uv run python tools/build_catalog.py   # rebuild the glyph catalog from data/*.T
 uv run python tools/contact_sheet.py   # build/contact-sheet.svg: every glyph with its key
 uv run python latex/examples/booklet.py  # LaTeX size/speed comparison in build/booklet
 ```
+
+## Credits
+Diagrams are drawn with the <b>Good Companion</b> (GC2004) chess diagram fonts
+by David L. Brown for the <i>StrateGems</i> Chess problem magazine.
