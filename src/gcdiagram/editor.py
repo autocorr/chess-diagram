@@ -21,6 +21,8 @@ from .board import (
     Hole,
     Piece,
     Shade,
+    Special,
+    SpecialColor,
     Square,
     Variant,
     Wall,
@@ -49,7 +51,9 @@ def options_from(data: dict[str, Any] | None) -> RenderOptions:
 
 
 def info() -> dict[str, Any]:
-    """Everything the palette needs: supported pieces and specials."""
+    """Everything the palette needs: supported pieces, and for each special the token
+    to place for each palette colour that has one (single-version specials, such as
+    box, use the same token for every colour)."""
     cat = load_catalog()
     pieces = []
     for kind in KINDS:
@@ -67,8 +71,15 @@ def info() -> dict[str, Any]:
                                 "angle": angle,
                             }
                         )
-    specials = {name: sorted(colors) for name, colors in sorted(cat.specials.items())}
+    specials = {name: _special_tokens(name, cs) for name, cs in sorted(cat.specials.items())}
     return {"pieces": pieces, "specials": specials}
+
+
+def _special_tokens(name: str, colors: set[SpecialColor]) -> dict[str, str]:
+    if colors <= {"none", "neutral"}:
+        (only,) = colors
+        return dict.fromkeys(_COLORS, figure_token(Special(name, only)))
+    return {c: figure_token(Special(name, c)) for c in _COLORS if c in colors}
 
 
 def _error(e: Exception) -> dict[str, Any]:

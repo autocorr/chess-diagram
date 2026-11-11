@@ -1,7 +1,7 @@
 // Editor UI. All chess and diagram logic runs in Python (gcdiagram.editor via Pyodide);
 // this file only handles the DOM, pointer and keyboard input, and the URL hash.
 
-import { type Info, type Options, Python, type Rendered, failed } from "./python";
+import { type Failure, type Info, type Options, Python, type Rendered, failed } from "./python";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 const U = 2000; // font units per square in the rendered SVG
@@ -99,8 +99,9 @@ function saveHash(): void {
 
 // --- Rendering --------------------------------------------------------------------------
 
-async function refresh(): Promise<void> {
-  const result = await py.render(state.fen, state.options);
+/** Render a FEN (by default the current one) and, if it is valid, make it current. */
+async function refresh(fen = state.fen): Promise<void> {
+  const result = await py.render(fen, state.options);
   if (failed(result)) {
     showError(result.error);
     return;
@@ -197,7 +198,7 @@ function cellAt(square: string): string {
 
 // --- Editing ----------------------------------------------------------------------------
 
-async function apply(result: { fen: string } | { error: string; code: string }): Promise<void> {
+async function apply(result: { fen: string } | Failure): Promise<void> {
   if (failed(result)) {
     setStatus(result.error, true);
     return;
@@ -252,19 +253,15 @@ function arrowsWithin(width: number, height: number): string[] {
 
 // --- Palette ----------------------------------------------------------------------------
 
-function pieceToken(kind: string): string | null {
+function pieceToken(kind: string, a = angle): string | null {
   return (
-    info.pieces.find((p) => p.kind === kind && p.color === color && p.variant === variant && p.angle === angle)
+    info.pieces.find((p) => p.kind === kind && p.color === color && p.variant === variant && p.angle === a)
       ?.token ?? null
   );
 }
 
 function specialToken(name: string): string | null {
-  const colors = info.specials[name] ?? [];
-  if (colors.every((c) => c === "none" || c === "neutral")) return `{@${name}}`;
-  if (color === "neutral") return colors.includes("neutral") ? `{=@${name}}` : null;
-  if (!colors.includes(color)) return null;
-  return color === "white" ? `{@${name[0]!.toUpperCase()}${name.slice(1)}}` : `{@${name}}`;
+  return info.specials[name]?.[color] ?? null;
 }
 
 function selectedToken(): string | null {
@@ -287,46 +284,33 @@ function buildPalette(): void {
     label.innerHTML = `<input type="radio" name="angle" value="${a}"${a === 0 ? " checked" : ""}/>${a}°`;
     angles.append(label);
   }
-  const pieces = $("pieces");
   for (const kind of KINDS) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.dataset.kind = kind;
-    b.dataset.testid = `piece-${kind}`;
-    b.title = kind;
-    b.addEventListener("click", () => {
-      selection = { type: "piece", kind };
-      tool = "place";
-      (document.querySelector('input[name="tool"][value="place"]') as HTMLInputElement).checked = true;
-      void updatePalette();
-    });
-    pieces.append(b);
+    $("pieces").append(paletteButton(`piece-${kind}`, kind, { type: "piece", kind }, { kind }));
   }
-  const specials = $("specials");
   for (const name of Object.keys(info.specials)) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.dataset.special = name;
-    b.dataset.testid = `special-${name}`;
-    b.title = name;
-    b.addEventListener("click", () => {
-      selection = { type: "special", name };
-      tool = "place";
-      (document.querySelector('input[name="tool"][value="place"]') as HTMLInputElement).checked = true;
-      void updatePalette();
-    });
-    specials.append(b);
+    $("specials").append(paletteButton(`special-${name}`, name, { type: "special", name }, { special: name }));
   }
+}
+
+/** A palette button that selects a figure and switches to the Place tool. */
+function paletteButton(testid: string, title: string, select: Selection, data: Record<string, string>): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.type = "button";
+  Object.assign(b.dataset, data, { testid });
+  b.title = title;
+  b.addEventListener("click", () => {
+    selection = select;
+    tool = "place";
+    (document.querySelector('input[name="tool"][value="place"]') as HTMLInputElement).checked = true;
+    void updatePalette();
+  });
+  return b;
 }
 
 async function updatePalette(): Promise<void> {
   for (const input of document.querySelectorAll<HTMLInputElement>('input[name="angle"]')) {
     const a = Number(input.value);
-    input.disabled =
-      selection.type !== "piece" ||
-      !info.pieces.some(
-        (p) => p.kind === (selection as { kind: string }).kind && p.color === color && p.variant === variant && p.angle === a,
-      );
+    input.disabled = selection.type !== "piece" || pieceToken(selection.kind, a) === null;
     input.checked = a === angle;
   }
   for (const b of document.querySelectorAll<HTMLButtonElement>("#pieces button")) {
@@ -341,17 +325,11 @@ async function updatePalette(): Promise<void> {
     const token = specialToken(name);
     b.disabled = token === null;
     b.setAttribute("aria-pressed", String(selection.type === "special" && selection.name === name));
-    b.innerHTML = await icon(token ?? fallbackSpecial(name));
+    const tokens = info.specials[name] ?? {};
+    b.innerHTML = await icon(token ?? tokens.white ?? tokens.neutral ?? tokens.black ?? "");
   }
   const token = selectedToken();
   $("selection").textContent = token ? `Selected: ${token}` : "Not available in the GC fonts";
-}
-
-function fallbackSpecial(name: string): string {
-  const colors = info.specials[name] ?? [];
-  if (colors.includes("white")) return `{@${name[0]!.toUpperCase()}${name.slice(1)}}`;
-  if (colors.includes("neutral") && !colors.includes("none")) return `{=@${name}}`;
-  return `{@${name}}`;
 }
 
 // --- Event wiring -----------------------------------------------------------------------
@@ -417,18 +395,7 @@ function wire(): void {
   // FEN: validate and preview while typing; normalise when the field is left.
   fenInput.addEventListener("input", () => {
     const text = fenInput.value;
-    void enqueue(async () => {
-      const r = await py.render(text, state.options);
-      if (failed(r)) {
-        showError(r.error);
-      } else {
-        state.fen = r.fen;
-        view = r;
-        showError("");
-        draw();
-        saveHash();
-      }
-    });
+    void enqueue(() => refresh(text));
   });
   fenInput.addEventListener("change", () => void enqueue(refresh));
   $("copy-fen").addEventListener("click", () => void navigator.clipboard.writeText(state.fen));

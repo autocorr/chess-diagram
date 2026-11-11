@@ -19,7 +19,13 @@ def test_info_lists_supported_pieces_and_specials() -> None:
     assert {"K", "q", "{Q90}", "{=R180}", "{~P}", "{!n270}"} <= tokens
     assert "{=Q45}" not in tokens and "{!N}" not in tokens
     assert len(info["pieces"]) == 6 * 8 * 2 + 6 * 4 + 6 * 2 + 3 * 2
-    assert info["specials"]["hourglass"] == ["black", "neutral", "white"]
+    assert info["specials"]["hourglass"] == {
+        "white": "{@Hourglass}",
+        "black": "{@hourglass}",
+        "neutral": "{=@hourglass}",
+    }
+    assert info["specials"]["star"] == {"white": "{@Star}", "black": "{@star}"}
+    assert info["specials"]["box"] == dict.fromkeys(["white", "black", "neutral"], "{@box}")
 
 
 def test_render_returns_canonical_fen_svg_and_geometry() -> None:
