@@ -96,7 +96,7 @@ class Board:
         return len(self.cells)
 
     def shade(self, row: int, col: int) -> Shade:
-        """Square colour; a1 (bottom-left) is dark, as on a standard board."""
+        """Square color; a1 (bottom-left) is dark, as on a standard board."""
         rank_index = self.height - 1 - row
         return "dark" if (col + rank_index) % 2 == 0 else "light"
 

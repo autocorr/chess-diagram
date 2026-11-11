@@ -38,18 +38,18 @@ Facts about the fonts, verified in Phase 1:
 - Each figure comes in a light-square and a dark-square version, and the hatching on dark
   squares is real outline geometry. A cell is therefore always exactly one glyph, chosen by
   figure and square shade. An empty light square is a blank glyph.
-- Coloured figures come in runs of four codes: **white on light, white on dark, black on
-  light, black on dark**. Neutral and colourless figures come in light/dark pairs.
+- Colored figures come in runs of four codes: **white on light, white on dark, black on
+  light, black on dark**. Neutral and colorless figures come in light/dark pairs.
 - Rotations are **clockwise**: a queen at 90° points its crown to the right.
 - The codes skip 0xAD (soft hyphen). Another code fills that slot, e.g. D 0xCB for the
   90° white knight on a light square, and X 0xFF for the 225° black knight on a light
   square. Code ranges therefore can't be assumed to be contiguous.
-- Border glyphs draw their line *outside* the board, in the neighbouring cell. Single
+- Border glyphs draw their line *outside* the board, in the neighboring cell. Single
   borders are 100 units thick. Double borders are a 50-unit line next to the board, a
   100-unit gap, and a 200-unit line, 350 units in total. The double-border corners are
   350-unit blocks.
 - The edge-square glyphs in GC2004Y draw their lines *inside* the cell and exist only for
-  light squares, so they're catalogued but not used for borders around holes.
+  light squares, so they're cataloged but not used for borders around holes.
 
 Quirks, which the catalog builder handles (see §4.1):
 
@@ -119,7 +119,7 @@ chess-diagram-generator/
 │   ├── board.py                    # board model (cells, figures, shades)
 │   ├── geometry.py                 # layout: cell rects, border segments, hole outlines, arrows, marks
 │   ├── options.py                  # RenderOptions (border style, captions, annotations, scale, …)
-│   ├── annotations.py              # annotation kinds, colours and their text form
+│   ├── annotations.py              # annotation kinds, colors and their text form
 │   ├── markup.py                   # <b>/<i> caption markup → styled runs
 │   ├── svgpath.py                  # outline parsing; compact SVG and cubic PDF encodings
 │   ├── textmetrics.py              # Helvetica and Helvetica-Bold widths for caption layout
@@ -195,14 +195,14 @@ label:<style>:<axis>:<value>     axis ∈ rank (1–26) file (a–z); includes t
 
 What the fonts cover (all with light and dark versions):
 
-| Set | Colours | Angles |
+| Set | Colors | Angles |
 |---|---|---|
 | plain K Q R B N P | white, black | all 8 |
 | plain K Q R B N P | neutral | 0, 90, 180, 270 |
 | chameleon K Q R B N P | white, black | 0 |
 | mirror N | white, black | 90, 180, 270 (the rotated knight reflected left–right) |
 
-| Special | Colours |
+| Special | Colors |
 |---|---|
 | `flower`, `diamond`, `ring`, `circle`, `star`, `jester` | white, black |
 | `equihopper` | white, black, neutral |
@@ -244,7 +244,7 @@ token    := "{" mod? letter angle? "}"
           | "{" "="? "@" name "}"             special figure on a square
 mod      := "=" (neutral) | "~" (chameleon) | "!" (mirrored)
 letter   := [KQRBNPkqrbnp]
-name     := [A-Za-z][a-z-]*                   catalog special name; case of 1st letter = colour
+name     := [A-Za-z][a-z-]*                   catalog special name; case of 1st letter = color
 angle    := "0" | "45" | "90" | "135" | "180" | "225" | "270" | "315"   (default 0)
 hole     := "."                               no square: nothing drawn, border goes around it
 wall     := "*"                               a blocked square: present but unusable, drawn solid
@@ -263,13 +263,13 @@ rnb{q180}kbnr/pppp.ppp/8/8/8/8/PPPPPPPP/{R90}NBQKBN{R270}
 
 - Every rank must be the same width. The board can be any size from 1×1 to 26×26. The
   limit of 26 matches the rank labels in GC2004Y and can be lifted.
-- Letter case gives the colour of `{~x}`, `{!x}` and `{@Name}` figures. For neutral
-  `{=x}` and `{=@name}` the case is ignored. A special that exists in only one colour
+- Letter case gives the color of `{~x}`, `{!x}` and `{@Name}` figures. For neutral
+  `{=x}` and `{=@name}` the case is ignored. A special that exists in only one color
   (`box`, `cross`, `half-circle`) accepts either case.
 - Mirroring is applied after rotation: `{!N90}` is the 90° knight reflected left–right.
 - A figure/angle combination the font doesn't contain is a **parse error with a clear
   message**. Checking happens against the catalog, so the grammar stays simple.
-- Serialising is canonical: standard pieces at 0° are written as bare letters, empty runs
+- Serializing is canonical: standard pieces at 0° are written as bare letters, empty runs
   are merged, and `{Q0}` becomes `Q`. As a result, `serialize(parse(s))` is stable, and
   the web editor shows a clean FEN.
 
@@ -322,17 +322,17 @@ is 2000, y points down) and is scaled at output time. A `Layout` contains:
   are blank glyphs and are skipped.
 - **`rects`:** filled rectangles for borders and solid walls. With `wall="box"`, a wall
   is drawn with the framed `special:box:none` glyph instead.
-- **`arrows`:** 7-point polygons from the centre of the start square to the tip at the
-  centre of the target square.
-- **`marks`:** annotations (`annotations.py`), each a filled path with a fill colour and
+- **`arrows`:** 7-point polygons from the center of the start square to the tip at the
+  center of the target square.
+- **`marks`:** annotations (`annotations.py`), each a filled path with a fill color and
   a white halo stroked behind it, so marks stay visible on dark squares and black pieces. Arrows use the
   arrow polygon. Circles (eight quadratic Béziers), squares and triangles are rings: an
   outer contour and an inner one wound the other way, so the nonzero fill rule that
   SVG, PDF and PGF all default to leaves the middle open. A cross is one 12-point
-  polygon, and a dot a solid circle a fifth of a square across. The colours are black, gray `#808080`, and the Okabe-Ito vermilion `#D55E00`
-  (labelled "Orange" in the editor), blue `#0072B2` and bluish green `#009E73`, which
-  colour-blind readers can still tell apart. The text form is
-  `kind:square[:colour]` or `arrow:from-to[:colour]`, and black is left out.
+  polygon, and a dot a solid circle a fifth of a square across. The colors are black, gray `#808080`, and the Okabe-Ito vermilion `#D55E00`
+  (labeled "Orange" in the editor), blue `#0072B2` and bluish green `#009E73`, which
+  color-blind readers can still tell apart. The text form is
+  `kind:square[:color]` or `arrow:from-to[:color]`, and black is left out.
 - **`texts`:** lines of styled runs. `caption_above` lines go above the board and
   `caption` lines under it, all left-aligned, plus the optional piece count
   right-aligned on the first line below. Captions wrap at spaces to the diagram's
@@ -395,7 +395,7 @@ lines, so they can't depend on stroke-join settings.
   a font resource). A styled line is one `BT … ET` that switches fonts with `Tf`. Arrow
   opacity uses an ExtGState.
 - The page is cropped exactly to the diagram plus padding, so it can be included as-is in
-  other documents. Colours are `#rgb`, `#rrggbb`, `white` or `black`.
+  other documents. Colors are `#rgb`, `#rrggbb`, `white` or `black`.
 
 ### 8.3 TeX snippet (`render/tex.py`), LaTeX route A
 
@@ -407,8 +407,8 @@ in `latex/gcsnippet.sty`:
 \gcrank{.05}{5.3}{\gcD{£££¤££}}%                    one glyph run per rank, at its baseline
 \gcrank{.05}{4.3}{\gcD{£0¤£¤£}\gcY{0}}%             a run per font
 \gcrects{\gcr{1.05}{3.05}{1}{1}\gcr{0}{6.05}{6.1}{.05}…}%   borders and walls
-\gcarrows{000000}{0.6}{\gcm{x}{y}\gcl{x}{y}…\gcz}%  arrows (colour, opacity, polygons)
-\gcmark{D55E00}{0}{\gcm{x}{y}\gcq{cx}{cy}{x}{y}…\gcz}%  one annotation (colour, halo, path)
+\gcarrows{000000}{0.6}{\gcm{x}{y}\gcl{x}{y}…\gcz}%  arrows (color, opacity, polygons)
+\gcmark{D55E00}{0}{\gcm{x}{y}\gcq{cx}{cy}{x}{y}…\gcz}%  one annotation (color, halo, path)
 }{\#2}{(3+2)}%                                       caption lines (\\-separated), count
 ```
 
@@ -465,7 +465,7 @@ at that width (in squares) before filling it.
   `tests/cases.py` the Lua `\gcbox` body must equal Python's byte for byte. The arrow
   arithmetic is written the same way in both languages (`sqrt`, no intermediate
   rounding), so the doubles agree. Finally, the same document built with routes A and B
-  must rasterise to identical pixels.
+  must rasterize to identical pixels.
 - **Installation:** `gcsnippet.sty`, `gcdiagram.sty`, `gcdiagram.lua` and
   `gcdiagram-catalog.lua` must be on both `TEXINPUTS` and `LUAINPUTS` (or in a texmf
   tree), because LuaTeX finds `require`d modules through `LUAINPUTS`.
@@ -526,28 +526,28 @@ as the CLI writes them.
   `data-square`, the board origin and size for pointer mapping, and each cell's token.
   The edit functions (`set_cell`, `move`, `rotate`, `recolor`, `resize`) take a FEN and
   return a new one, so every edit is checked by the real parser. `rotate` steps to the
-  next angle the fonts support for that piece, and `recolor` to the next colour (white,
+  next angle the fonts support for that piece, and `recolor` to the next color (white,
   black, neutral) they support for that figure. `export` returns SVG, PDF bytes or a TeX
   snippet.
   `info` and `figure_svg` feed the palette. Errors come back as `{error, code}`.
 - **UI** (`main.ts`, no framework): it only handles input and display.
-  - The Figure box lists the piece and special icons first, then the colour, variant
+  - The Figure box lists the piece and special icons first, then the color, variant
     and rotation controls, which disable whatever the fonts don't contain.
-    A piece is offered if it exists at any angle in the chosen colour and variant, and
+    A piece is offered if it exists at any angle in the chosen color and variant, and
     the angle snaps to the nearest one it has (ties clockwise); if the selected piece
     doesn't exist there at all, the first that does is selected. Without this, choosing
     Mirrored at 0° would leave nothing selectable, since mirrored knights only exist at
     90°, 180° and 270°.
   - Tools: place (clicking the same figure again removes it), erase, hole, wall and
     annotate. Annotate draws an arrow on a drag, and on a click the circle, cross,
-    square, triangle or dot chosen in the Annotation section, in its chosen colour. Doing
-    it again removes it, or recolours it if another colour is chosen. Choosing a
-    shape or colour selects the tool. Old links with `arrow=e2-e4` load as black arrow
+    square, triangle or dot chosen in the Annotation section, in its chosen color. Doing
+    it again removes it, or recolors it if another color is chosen. Choosing a
+    shape or color selects the tool. Old links with `arrow=e2-e4` load as black arrow
     annotations.
   - Drag to move. Right-click or <kbd>Del</kbd> clears; <kbd>R</kbd> and
     <kbd>Shift</kbd>+<kbd>R</kbd> rotate the piece under the pointer.
   - Touch: tap places and dragging moves (pointer events throughout). Touch has no hover,
-    keys or right-click, so a long-press on a figure opens a menu with rotate, colour
+    keys or right-click, so a long-press on a figure opens a menu with rotate, color
     (white → black → neutral) and clear buttons. Android reports a long-press as
     `contextmenu`, so right-click only clears for a mouse. A tap on the board while the
     menu is open only closes it.
@@ -564,11 +564,11 @@ as the CLI writes them.
   - Board size, border, wall style, captions above and below (B and I buttons, and
     <kbd>Ctrl</kbd>+<kbd>B</kbd>/<kbd>I</kbd>, wrap the selection in `<b>`/`<i>` or
     unwrap it), piece count and square size.
-  - FEN field: validated as you type and normalised when you leave it.
+  - FEN field: validated as you type and normalized when you leave it.
   - URL hash state, so a link or a reload restores the diagram.
   - SVG/PDF/TeX download, plus PNG at 150, 300 or 600 dpi. PNG is editor-only: the
     browser draws the SVG export onto a canvas sized from its pt dimensions, because
-    Pyodide has no rasteriser. Captions use the viewer's Helvetica or Arial, so PNGs
+    Pyodide has no rasterizer. Captions use the viewer's Helvetica or Arial, so PNGs
     aren't byte-identical across machines; the test checks the size and sample pixels.
     Images over 100 million pixels are refused.
 - **Pointer mapping:** client coordinates go through the SVG's screen CTM into font units,
@@ -605,24 +605,24 @@ pre-rendered SVGs) would be the lighter option.
   arrows, holes and walls with a frame, an outline-style irregular board, and a 12×11
   board at 12 pt. To regenerate them, run `GCDIAGRAM_REGEN=1 uv run pytest tests/test_svg.py`.
 - **PDF tests:** xref offsets, determinism, no embedded fonts, and `pdfinfo` page size.
-  Each case is also rasterised with `pdftoppm` and compared (RMSE after downsampling)
+  Each case is also rasterized with `pdftoppm` and compared (RMSE after downsampling)
   against an Inkscape raster of the SVG. Tests that need these tools are skipped when
   they're missing.
 - **Editor bridge** (`tests/test_editor.py`): palette info, render geometry, every edit
   operation, error reporting, and exports identical to the renderers.
 - **Browser** (`web/e2e/`, Playwright with Chromium; `npm run test:e2e`): Python starts
-  without page errors, FEN typing validates and normalises, placing, toggling, clearing,
+  without page errors, FEN typing validates and normalizes, placing, toggling, clearing,
   rotating (with unsupported angles skipped), dragging, holes, walls, resizing, arrows and
   options all work, the URL hash restores state, and the SVG/PDF/TeX downloads are
   byte-identical to `uv run gcdiagram` with the same arguments. At phone, tablet and
   desktop sizes in both orientations the page never scrolls sideways and the board stays
   in view while the palette and options are on screen. With touch emulation, taps place,
-  drags move and the long-press menu rotates, recolours and clears. The suite passed 5
+  drags move and the long-press menu rotates, recolors and clears. The suite passed 5
   repeated runs (90 tests) without a failure.
 - **LaTeX** (`tests/test_latex.py`): `texlua` runs the shared vectors against the Lua
   parser; the Lua `\gcbox` body must equal Python's for every case; route A must compile
   with LuaLaTeX and XeLaTeX with each GC font embedded once; route B must compile and
-  rasterise pixel-identically to route A; and a bad FEN must give a TeX error. These
+  rasterize pixel-identically to route A; and a bad FEN must give a TeX error. These
   tests are skipped if `texlua`, `lualatex` or `xelatex` is missing.
 
 ---

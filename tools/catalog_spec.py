@@ -6,9 +6,9 @@ Verified by eye against tools/contact_sheet.py output.
 
 Conventions found while transcribing:
 
-* Coloured figures come in runs of four codes:
+* Colored figures come in runs of four codes:
   white-on-light, white-on-dark, black-on-light, black-on-dark.
-* Neutral figures and colourless specials come in pairs: light, dark.
+* Neutral figures and colorless specials come in pairs: light, dark.
 * Rotation angles are clockwise (a 90-degree queen points its crown to the right).
 * Codes skip 0xAD (soft hyphen); the font substitutes another code in that slot
   (e.g. D 0xCB for the 90-degree white knight, X 0xFF for the 225-degree black knight).
@@ -152,7 +152,7 @@ NEUTRAL = {
 }
 
 # --- Special figures --------------------------------------------------------------------
-# Coloured: (font, [4 codes]); colourless or neutral: (font, color, [light, dark]).
+# Colored: (font, [4 codes]); colorless or neutral: (font, color, [light, dark]).
 
 SPECIAL_COLORED = {
     "flower": ("D", _r(0xE4, 0xE7)),

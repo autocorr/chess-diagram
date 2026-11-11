@@ -1,7 +1,7 @@
 # gcdiagram
 
 Chess and fairy-chess diagrams from an extended FEN string, drawn with the Good Companion
-(GC2004) diagram fonts by David L. Brown. Output is optimised SVG or standalone PDF, with
+(GC2004) diagram fonts by David L. Brown. Output is optimized SVG or standalone PDF, with
 vector outlines and no embedded fonts. Diagrams can also be typeset directly in LaTeX
 (LuaLaTeX or XeLaTeX) and edited in a local browser editor. The design is described in
 [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -108,7 +108,7 @@ Click to place the selected figure; clicking it again removes it. Drag to move,
 right-click or <kbd>Del</kbd> to clear, and <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> to
 rotate the piece under the pointer. There are also tools for holes, walls and
 annotations (drag between squares for an arrow, or click for a circle, cross, square,
-triangle or dot, in the colour chosen under Annotation). Captions go above and below the
+triangle or dot, in the color chosen under Annotation). Captions go above and below the
 board; select text and press B or I (or Ctrl+B, Ctrl+I) for bold or italic. The
 FEN field and the URL stay in sync with the board, and SVG/PDF/TeX exports are
 identical to the CLI's. The editor can also export a PNG at 150, 300 or 600

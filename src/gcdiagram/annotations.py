@@ -1,9 +1,9 @@
 """Annotations drawn over the board: arrows, circles, crosses, squares, triangles and dots.
 
-Each one has a colour from a small fixed set and a white outline, so it stays visible
+Each one has a color from a small fixed set and a white outline, so it stays visible
 on dark squares and black pieces. Black is the default. Vermilion (shown as
 "Orange" in the editor), blue and bluish green are from the Okabe-Ito palette, whose
-colours stay distinguishable for colour-blind readers.
+colors stay distinguishable for color-blind readers.
 
 The text form, used by the CLI, the editor and its URL, is KIND:SQUARE[:COLOR] or,
 for arrows, arrow:FROM-TO[:COLOR]. Examples: "circle:e4", "arrow:e2-e4:vermilion".
@@ -44,7 +44,7 @@ class Annotation:
         if self.kind not in KINDS:
             raise ValueError(f"annotation kind must be one of {KINDS}, not {self.kind!r}")
         if self.color not in COLORS:
-            raise ValueError(f"annotation colour must be one of {COLORS}, not {self.color!r}")
+            raise ValueError(f"annotation color must be one of {COLORS}, not {self.color!r}")
         need = 2 if self.kind == "arrow" else 1
         if len(self.squares) != need:
             article = "an" if self.kind == "arrow" else "a"

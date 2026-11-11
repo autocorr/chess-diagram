@@ -53,8 +53,8 @@ def options_from(data: dict[str, Any] | None) -> RenderOptions:
 
 def info() -> dict[str, Any]:
     """Everything the palette needs: supported pieces, and for each special the token
-    to place for each palette colour that has one (single-version specials, such as
-    box, use the same token for every colour)."""
+    to place for each palette color that has one (single-version specials, such as
+    box, use the same token for every color)."""
     cat = load_catalog()
     pieces = []
     for kind in KINDS:
@@ -174,7 +174,7 @@ def rotate(fen: str, square: str, step: int = 45) -> dict[str, Any]:
 
 
 def recolor(fen: str, square: str) -> dict[str, Any]:
-    """Change the figure on a square to the next colour (white, black, neutral) the fonts
+    """Change the figure on a square to the next color (white, black, neutral) the fonts
     have for it, keeping its kind, angle and variant."""
     try:
         board = parse(fen)

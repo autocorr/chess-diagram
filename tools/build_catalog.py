@@ -12,7 +12,7 @@ spans y = -500..1500 with y up, so y_cell = 1500 - y_font.) Border glyphs extend
 outside 0..2000; renderers place them in the cell next to the board.
 
 Tiny "anchor" specks that GC2004Y puts in cell corners (contours of at most
-SPECK x SPECK units, presumably to stabilise bounding boxes in word processors)
+SPECK x SPECK units, presumably to stabilize bounding boxes in word processors)
 are removed.
 """
 

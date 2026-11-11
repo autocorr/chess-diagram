@@ -1,7 +1,7 @@
 """Inline caption markup: <b>bold</b> and <i>italic</i>.
 
 Tags rather than Markdown-style asterisks, because problem stipulations use '*' for set
-play ("h#2*"). Only these four tags are recognised (case-insensitive) and everything
+play ("h#2*"). Only these four tags are recognized (case-insensitive) and everything
 else, including a stray '<', is literal text. Styles don't carry over from one caption
 line to the next, and a tag left open runs to the end of its line.
 """
@@ -24,7 +24,7 @@ class Run:
 
 
 def parse_markup(line: str) -> list[Run]:
-    """Split one caption line into styled runs, merging neighbours with the same style."""
+    """Split one caption line into styled runs, merging neighbors with the same style."""
     runs: list[Run] = []
     bold = italic = False
     pos = 0

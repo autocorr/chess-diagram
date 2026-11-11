@@ -29,7 +29,7 @@ class RenderOptions:
     arrows:  square pairs such as "e2-e4" or ("e2", "e4"), drawn in arrow_color at
              arrow_opacity.
     annotations: arrows, circles, crosses, squares, triangles and dots, each in its own
-             colour, e.g. "circle:e4" or "arrow:e2-e4:blue" (see annotations.py).
+             color, e.g. "circle:e4" or "arrow:e2-e4:blue" (see annotations.py).
     wall:    "solid" fills blocked squares black; "box" uses the framed GC2004D box.
     square_size: size of one square in points (PDF) or CSS pt (SVG).
     padding: whitespace around the diagram, in points.

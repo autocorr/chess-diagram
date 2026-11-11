@@ -31,12 +31,12 @@ ARROW_SHAFT = 200
 ARROW_HEAD_LENGTH = 640
 ARROW_HEAD_WIDTH = 600
 
-# Annotation marks, centred in their square.
+# Annotation marks, centerd in their square.
 MARK_LINE = 140  # line thickness of the circle, square and triangle
 CIRCLE_RADIUS = 880
 SQUARE_HALF = 820
 TRIANGLE_RADIUS = 980  # circumradius of the outer edge
-CROSS_ARM = 620  # from the centre to the end of each bar, along x and y
+CROSS_ARM = 620  # from the center to the end of each bar, along x and y
 CROSS_LINE = 160
 DOT_RADIUS = 200  # a solid dot a fifth of a square across
 HALO = 120  # stroke width of the white outline behind every mark (half shows)
@@ -385,7 +385,7 @@ def annotation_mark(board: Board, spec: str | Annotation, bx: float, by: float) 
         path = _polygon([(cx - o, cy - o), (cx + o, cy - o), (cx + o, cy + o), (cx - o, cy + o)])
         path += _polygon([(cx - i, cy - i), (cx - i, cy + i), (cx + i, cy + i), (cx + i, cy - i)])
     elif ann.kind == "triangle":
-        # Point up, with the bounding box centred in the square. The inner edge is
+        # Point up, with the bounding box centerd in the square. The inner edge is
         # MARK_LINE inside the outer one; an equilateral triangle's inradius is half
         # its circumradius, hence the 2 * MARK_LINE.
         ty = cy + TRIANGLE_RADIUS / 4
@@ -431,7 +431,7 @@ def _triangle(cx: float, cy: float, r: float, direction: int) -> list[Segment]:
 
 
 def _cross(cx: float, cy: float) -> list[Point]:
-    """The outline of a diagonal cross: two bars, CROSS_LINE thick, meeting at the centre."""
+    """The outline of a diagonal cross: two bars, CROSS_LINE thick, meeting at the center."""
     a = CROSS_ARM
     e = CROSS_LINE / 2 / math.sqrt(2)  # half the bar thickness, along x and y
     k = 2 * e  # where the bars' edges cross the axes

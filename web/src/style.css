@@ -70,7 +70,7 @@ h1 {
   color: var(--error);
 }
 
-/* The switch and the Help link sit on the same centre line: same font and line height,
+/* The switch and the Help link sit on the same center line: same font and line height,
    and no padding or border on the button. */
 #theme-toggle,
 #help-link {
@@ -473,8 +473,8 @@ button {
   margin-right: 0.15rem;
 }
 
-/* Annotation colours, as exported (annotations.py). The board draws them with a white
-   outline, but the swatches show just the colour. */
+/* Annotation colors, as exported (annotations.py). The board draws them with a white
+   outline, but the swatches show just the color. */
 .swatch {
   width: 0.8rem;
   height: 0.8rem;

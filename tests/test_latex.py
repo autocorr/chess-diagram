@@ -35,7 +35,7 @@ def tex_env() -> dict[str, str]:
 
 
 def to_lua(value: object) -> str:
-    """Serialise JSON-like data as a Lua table constructor."""
+    """Serialize JSON-like data as a Lua table constructor."""
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, (int, float)):

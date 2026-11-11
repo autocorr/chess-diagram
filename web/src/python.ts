@@ -11,7 +11,7 @@ export interface PieceInfo {
 
 export interface Info {
   pieces: PieceInfo[];
-  /** special name -> palette colour -> FEN token, for the colours the fonts have */
+  /** special name -> palette color -> FEN token, for the colors the fonts have */
   specials: Record<string, Partial<Record<string, string>>>;
 }
 

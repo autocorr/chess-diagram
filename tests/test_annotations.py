@@ -1,4 +1,4 @@
-"""Annotations: arrows, circles, crosses, squares, triangles and dots in fixed colours."""
+"""Annotations: arrows, circles, crosses, squares, triangles and dots in fixed colors."""
 
 from __future__ import annotations
 
@@ -70,11 +70,11 @@ def _bounds(path: list) -> tuple[float, float, float, float]:
 
 
 @pytest.mark.parametrize("kind", ["circle", "cross", "square", "triangle", "dot"])
-def test_marks_are_centred_in_their_square(kind: str) -> None:
+def test_marks_are_centerd_in_their_square(kind: str) -> None:
     lay = layout(parse(EMPTY), RenderOptions(annotations=[f"{kind}:e4"]))
     (mark,) = lay.marks
     x0, y0, x1, y1 = _bounds(mark.path)
-    # e4 is column 4, row 4 from the top; its centre:
+    # e4 is column 4, row 4 from the top; its center:
     cx, cy = lay.board_x + 4.5 * U, lay.board_y + 4.5 * U
     assert (x0 + x1) / 2 == pytest.approx(cx, abs=1)
     assert (y0 + y1) / 2 == pytest.approx(cy, abs=1)
@@ -103,7 +103,7 @@ def test_arrow_matches_the_plain_arrow() -> None:
     assert mark.fill == FILL["blue"] == "#0072B2"
 
 
-def test_colours_all_outlined() -> None:
+def test_colors_all_outlined() -> None:
     specs = [f"circle:a{i + 1}:{c}" for i, c in enumerate(FILL)]
     marks = layout(parse(EMPTY), RenderOptions(annotations=specs)).marks
     assert [(m.fill, m.halo) for m in marks] == [

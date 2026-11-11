@@ -10,7 +10,7 @@ const KINDS = ["K", "Q", "R", "B", "N", "P"];
 const ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SVG_NS = "http://www.w3.org/2000/svg";
 const LONG_PRESS_MS = 450;
-// Annotation colours shown under another name than their key (gcdiagram/annotations.py).
+// Annotation colors shown under another name than their key (gcdiagram/annotations.py).
 const COLOR_LABELS: Record<string, string> = { vermilion: "orange" };
 
 interface DiagramOptions extends Options {
@@ -23,7 +23,7 @@ interface DiagramOptions extends Options {
   square_size: number;
 }
 
-/** An annotation: its kind, square(s) ("e4", or "e2-e4" for an arrow) and colour. */
+/** An annotation: its kind, square(s) ("e4", or "e2-e4" for an arrow) and color. */
 interface Mark {
   kind: string;
   squares: string;
@@ -279,7 +279,7 @@ function openMenu(square: string): void {
   }
   menuSquare = square;
   // Holes, walls and special figures have no rotations; holes, walls and single-version
-  // specials (box, cross, half-circle) have no colours.
+  // specials (box, cross, half-circle) have no colors.
   const figure = cell !== "." && cell !== "*";
   const special = /@([a-z-]+)/.exec(cell)?.[1];
   const versions = special ? new Set(Object.values(info.specials[special] ?? {})).size : 3;
@@ -367,8 +367,8 @@ function markSpec(m: Mark): string {
 }
 
 /**
- * Add an annotation in the selected colour. If the same kind is already on the same
- * square(s), remove it, or recolour it when another colour is selected.
+ * Add an annotation in the selected color. If the same kind is already on the same
+ * square(s), remove it, or recolor it when another color is selected.
  */
 function toggleMark(kind: string, squares: string): void {
   const marks = state.options.annotations.map(parseMark);
@@ -425,14 +425,14 @@ function pieceToken(kind: string, a = angle): string | null {
   );
 }
 
-/** The angles the fonts have for a piece in the current colour and variant. */
+/** The angles the fonts have for a piece in the current color and variant. */
 function anglesFor(kind: string): number[] {
   return info.pieces.filter((p) => p.kind === kind && p.color === color && p.variant === variant).map((p) => p.angle);
 }
 
 /**
  * The supported angle closest to the chosen one (ties go clockwise), or null if the
- * piece doesn't exist in this colour and variant. Mirrored knights, for example, only
+ * piece doesn't exist in this color and variant. Mirrored knights, for example, only
  * exist at 90, 180 and 270 degrees.
  */
 function nearestAngle(kind: string): number | null {
@@ -448,7 +448,7 @@ function nearestAngle(kind: string): number | null {
 }
 
 /**
- * After a colour, variant or piece change, move to the nearest figure the fonts have
+ * After a color, variant or piece change, move to the nearest figure the fonts have
  * rather than leave nothing selectable: keep the piece if it exists here (snapping the
  * angle), else take the first piece that does.
  */
@@ -682,7 +682,7 @@ function wire(): void {
     }
   });
 
-  // FEN: validate and preview while typing; normalise when the field is left.
+  // FEN: validate and preview while typing; normalize when the field is left.
   fenInput.addEventListener("input", () => {
     const text = fenInput.value;
     void enqueue(() => refresh(text));
@@ -764,7 +764,7 @@ function wire(): void {
 
   bindRadios("mark-kind", (v) => (markKind = v));
   bindRadios("mark-color", (v) => (markColor = v));
-  // Choosing a shape or colour, even the one already chosen, switches to the Annotate tool.
+  // Choosing a shape or color, even the one already chosen, switches to the Annotate tool.
   $("annotation").addEventListener("click", (e) => {
     if ((e.target as HTMLElement).matches('input[name^="mark-"]')) selectTool("annotate");
   });
@@ -784,7 +784,7 @@ function wire(): void {
     button.addEventListener("click", () =>
       enqueue(async () => {
         const fmt = button.dataset.export!;
-        // PNG is drawn here from the SVG export; Python has no rasteriser in Pyodide.
+        // PNG is drawn here from the SVG export; Python has no rasterizer in Pyodide.
         const result = await py.export(state.fen, state.options, fmt === "png" ? "svg" : fmt);
         if (failed(result)) {
           setStatus(result.error, true);

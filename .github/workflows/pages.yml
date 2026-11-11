@@ -45,7 +45,7 @@ jobs:
 
       # A project site lives under /<repository>/, so build with that base path (the
       # editor loads Pyodide and the Python sources relative to it). base_path is empty
-      # for a user or organisation site, giving "/".
+      # for a user or organization site, giving "/".
       - run: npm run build -- --base "${{ steps.pages.outputs.base_path }}/"
 
       - uses: actions/upload-pages-artifact@v4

@@ -32,8 +32,8 @@ async function setFen(page: Page, value: string, canonical = value): Promise<voi
   await idle(page);
 }
 
-/** Viewport coordinates of the centre of a square, from the rendered SVG's geometry. */
-async function centre(page: Page, square: string, border = "single"): Promise<{ x: number; y: number }> {
+/** Viewport coordinates of the center of a square, from the rendered SVG's geometry. */
+async function center(page: Page, square: string, border = "single"): Promise<{ x: number; y: number }> {
   await idle(page);
   const svg = page.locator("#board svg");
   const box = (await svg.boundingBox())!;
@@ -50,13 +50,13 @@ async function centre(page: Page, square: string, border = "single"): Promise<{ 
 }
 
 async function clickSquare(page: Page, square: string, button: "left" | "right" = "left"): Promise<void> {
-  const { x, y } = await centre(page, square);
+  const { x, y } = await center(page, square);
   await page.mouse.click(x, y, { button });
 }
 
 async function dragSquares(page: Page, from: string, to: string): Promise<void> {
-  const a = await centre(page, from);
-  const b = await centre(page, to);
+  const a = await center(page, from);
+  const b = await center(page, to);
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
   await page.mouse.move(b.x, b.y, { steps: 5 });
@@ -124,7 +124,7 @@ test("dark mode follows the system until switched, and the switch is remembered"
   await expect(page.getByTestId("theme-toggle")).toHaveAttribute("aria-checked", "false");
 });
 
-test("typing a FEN validates it and normalises it", async ({ page }) => {
+test("typing a FEN validates it and normalizes it", async ({ page }) => {
   await open(page);
   await fen(page).fill("8/7");
   await expect(page.getByTestId("fen-error")).toHaveText("rank 2 from the top has 7 squares, the first has 8");
@@ -199,7 +199,7 @@ test("Mirrored offers the knight at the angles the fonts have", async ({ page })
 test("rotates with R, moves by dragging, deletes with Delete", async ({ page }) => {
   await open(page);
   await setFen(page, "8/8/8/8/4{=N90}3/8/8/8");
-  const e4 = await centre(page, "e4");
+  const e4 = await center(page, "e4");
   await page.mouse.move(e4.x, e4.y);
   await page.keyboard.press("r");
   await expect(fen(page)).toHaveValue("8/8/8/8/4{=N180}3/8/8/8"); // neutral: skips 135
@@ -207,7 +207,7 @@ test("rotates with R, moves by dragging, deletes with Delete", async ({ page }) 
   await expect(fen(page)).toHaveValue("8/8/8/8/4{=N90}3/8/8/8");
   await dragSquares(page, "e4", "a1");
   await expect(fen(page)).toHaveValue("8/8/8/8/8/8/8/{=N90}7");
-  const a1 = await centre(page, "a1");
+  const a1 = await center(page, "a1");
   await page.mouse.move(a1.x, a1.y);
   await page.keyboard.press("Delete");
   await expect(fen(page)).toHaveValue(EMPTY8);
@@ -235,7 +235,7 @@ test("annotations and diagram options", async ({ page }) => {
   const annotations = page.getByTestId("annotations");
   const items = annotations.locator(".label");
   await expect(annotations).toHaveText("No annotations");
-  // Choosing a shape or colour switches to the Annotate tool.
+  // Choosing a shape or color switches to the Annotate tool.
   await page.getByText("Arrow", { exact: true }).click();
   await expect(page.locator('input[name="tool"][value="annotate"]')).toBeChecked();
   await dragSquares(page, "e2", "e4");
@@ -247,7 +247,7 @@ test("annotations and diagram options", async ({ page }) => {
   await expect(page.locator('#board svg path[fill="#D55E00"]')).toHaveCount(1);
   // Every mark is outlined in white.
   await expect(page.locator('#board svg path[stroke="#fff"]')).toHaveCount(2);
-  // The same mark in another colour recolours it; in the same colour, removes it.
+  // The same mark in another color recolors it; in the same color, removes it.
   await choose(page, "mark-color", "green");
   await clickSquare(page, "d1");
   await expect(items).toHaveText(["arrow e2-e4", "circle d1 (green)"]);
@@ -313,7 +313,7 @@ test("captions above and below, with bold and italic", async ({ page }) => {
   expect(page.url()).toContain("above=");
 });
 
-test("the Dark mode switch and the Help link share a centre line", async ({ page }) => {
+test("the Dark mode switch and the Help link share a center line", async ({ page }) => {
   await open(page);
   const middle = async (selector: string) => {
     const box = (await page.locator(selector).boundingBox())!;
@@ -368,7 +368,7 @@ test("PNG export is drawn from the SVG at the chosen resolution", async ({ page 
     const ctx = canvas.getContext("2d")!;
     ctx.drawImage(bitmap, 0, 0);
     const px = (pt: [number, number]) => [...ctx.getImageData((pt[0] * 150) / 72, (pt[1] * 150) / 72, 1, 1).data];
-    // e4's centre is at 1 + 4.5 * 20 = 91pt; the circle's ring is 0.37 squares out.
+    // e4's center is at 1 + 4.5 * 20 = 91pt; the circle's ring is 0.37 squares out.
     return { frame: px([0.5, 0.5]), light: px([91 - 4, 91]), ring: px([91 + 20 * 0.405, 91]) };
   }, png.toString("base64"));
   expect(pixels.frame).toEqual([0, 0, 0, 255]);
@@ -418,7 +418,7 @@ test.describe("touch", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
   async function longPress(page: Page, square: string): Promise<void> {
-    const { x, y } = await centre(page, square);
+    const { x, y } = await center(page, square);
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
     await page.waitForTimeout(700);
@@ -438,9 +438,9 @@ test.describe("touch", () => {
     await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@star}"); // the press itself placed nothing
     await page.getByRole("button", { name: "Rotate clockwise" }).tap();
     await expect(fen(page)).toHaveValue("8/8/8/8/4{Q45}3/8/8/7{@star}");
-    await page.getByRole("button", { name: "Rotate anticlockwise" }).tap();
+    await page.getByRole("button", { name: "Rotate counterclockwise" }).tap();
     await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@star}");
-    const recolor = page.getByRole("button", { name: "Change colour" });
+    const recolor = page.getByRole("button", { name: "Change color" });
     await recolor.tap();
     await expect(fen(page)).toHaveValue("8/8/8/8/4q3/8/8/7{@star}");
     await recolor.tap();
@@ -448,13 +448,13 @@ test.describe("touch", () => {
     await recolor.tap();
     await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@star}");
     // A tap elsewhere on the board only closes the menu.
-    const a1 = await centre(page, "a1");
+    const a1 = await center(page, "a1");
     await page.touchscreen.tap(a1.x, a1.y);
     await expect(menu).toBeHidden();
     await idle(page);
     await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@star}");
 
-    await longPress(page, "h1"); // special figures don't rotate, but a star has two colours
+    await longPress(page, "h1"); // special figures don't rotate, but a star has two colors
     await expect(page.getByRole("button", { name: "Rotate clockwise" })).toBeHidden();
     await recolor.tap();
     await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/7{@Star}");
@@ -466,10 +466,10 @@ test.describe("touch", () => {
   test("tapping places and touch-dragging moves", async ({ page }) => {
     await open(page);
     await setFen(page, EMPTY8);
-    const e4 = await centre(page, "e4");
+    const e4 = await center(page, "e4");
     await page.touchscreen.tap(e4.x, e4.y);
     await expect(fen(page)).toHaveValue("8/8/8/8/4Q3/8/8/8");
-    const e5 = await centre(page, "e5");
+    const e5 = await center(page, "e5");
     const cdp = await page.context().newCDPSession(page);
     const touch = (type: string, points: { x: number; y: number }[]) =>
       cdp.send("Input.dispatchTouchEvent", { type: type as "touchStart", touchPoints: points });

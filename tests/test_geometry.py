@@ -140,7 +140,7 @@ def test_arrow_specs(spec: str | tuple[str, str]) -> None:
     assert parse_arrow(spec) == ("e2", "e4")
 
 
-def test_arrow_points_from_centre_to_centre() -> None:
+def test_arrow_points_from_center_to_center() -> None:
     lay = layout(parse("8/8/8/8/8/8/8/8"), RenderOptions(arrows=["a1-a3"]))
     (pts,) = lay.arrows
     tip = pts[3]

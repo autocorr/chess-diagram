@@ -1,4 +1,4 @@
-"""Optimised standalone SVG: each glyph outline is defined once and placed with <use>."""
+"""Optimized standalone SVG: each glyph outline is defined once and placed with <use>."""
 
 from __future__ import annotations
 

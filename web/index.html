@@ -37,18 +37,18 @@
       <h3>Editing the board</h3>
       <ul>
         <li><b>Place</b>: click a square to put the selected figure there. Choose the figure under
-          <b>Figure</b>: its colour, its variant (plain, chameleon or mirrored) and its rotation.</li>
+          <b>Figure</b>: its color, its variant (plain, chameleon or mirrored) and its rotation.</li>
         <li><b>Erase</b>, <b>Hole</b>, <b>Wall</b>: click a square to empty it, remove it from the
           board, or block it.</li>
         <li><b>Annotate</b>: drag from one square to another for an arrow, or click a square for the
-          circle, cross, square, triangle or dot chosen under <b>Annotation</b>, in the chosen colour. Doing
-          the same again removes it; with another colour selected, it changes colour instead. Click an
+          circle, cross, square, triangle or dot chosen under <b>Annotation</b>, in the chosen color. Doing
+          the same again removes it; with another color selected, it changes color instead. Click an
           annotation in the list under <b>Annotation</b> to remove just that one.</li>
         <li>Drag a figure to move it. Right-click a square to empty it.</li>
         <li>With the pointer over a square: <kbd>R</kbd> rotates the figure 45° clockwise,
-          <kbd>Shift</kbd>+<kbd>R</kbd> anticlockwise, <kbd>Del</kbd> empties the square.</li>
+          <kbd>Shift</kbd>+<kbd>R</kbd> counterclockwise, <kbd>Del</kbd> empties the square.</li>
         <li>On a touch screen, long-press a figure for buttons that rotate it (↺ ↻), change its
-          colour between white, black and neutral, or remove it (✕).</li>
+          color between white, black and neutral, or remove it (✕).</li>
       </ul>
 
       <h3>Extended FEN</h3>
@@ -85,15 +85,10 @@
     <main>
       <section id="board-pane">
         <div id="board" data-testid="board"></div>
-        <p class="hint fine-pointer">
-          Click: place · Right-click: clear · Drag: move · <kbd>R</kbd>/<kbd>Shift</kbd>+<kbd>R</kbd>:
-          rotate · <kbd>Del</kbd>: clear
-        </p>
-        <p class="hint coarse-pointer">Tap: place · Drag: move · Long-press: rotate, recolour or clear</p>
         <div id="square-menu" data-testid="square-menu" role="toolbar" aria-label="Square actions" hidden>
-          <button type="button" data-rotate="-45" aria-label="Rotate anticlockwise">↺</button>
+          <button type="button" data-rotate="-45" aria-label="Rotate counterclockwise">↺</button>
           <button type="button" data-rotate="45" aria-label="Rotate clockwise">↻</button>
-          <button type="button" id="menu-recolor" aria-label="Change colour" title="White → black → neutral"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button>
+          <button type="button" id="menu-recolor" aria-label="Change color" title="White → black → neutral"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2a8 8 0 0 0 0 16z" fill="currentColor"/></svg></button>
           <button type="button" id="menu-clear" aria-label="Clear square">✕</button>
         </div>
       </section>
@@ -138,7 +133,7 @@
             <label><input type="radio" name="mark-kind" value="triangle" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5 13.5 12.5h-11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Triangle</label>
             <label><input type="radio" name="mark-kind" value="dot" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.5" fill="currentColor"/></svg>Dot</label>
           </div>
-          <div class="segmented" aria-label="Colour">
+          <div class="segmented" aria-label="Color">
             <label><input type="radio" name="mark-color" value="black" checked /><span class="swatch" data-color="black"></span>Black</label>
             <label><input type="radio" name="mark-color" value="gray" /><span class="swatch" data-color="gray"></span>Gray</label>
             <label><input type="radio" name="mark-color" value="vermilion" /><span class="swatch" data-color="vermilion"></span>Orange</label>

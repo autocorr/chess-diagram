@@ -20,7 +20,7 @@ local ANGLES = { [0] = true, [45] = true, [90] = true, [135] = true,
                  [180] = true, [225] = true, [270] = true, [315] = true }
 local PIECE_NAMES = { K = "king", Q = "queen", R = "rook", B = "bishop", N = "knight", P = "pawn" }
 
--- special name -> set of colours, derived from the catalog keys
+-- special name -> set of colors, derived from the catalog keys
 local specials = {}
 for key in pairs(catalog.glyphs) do
   local name, color = key:match("^special:([^:]+):([^:]+):")
