@@ -52,6 +52,8 @@ class Layout:
     width: float
     height: float
     background: Rect | None
+    board_x: float = 0  # top-left corner of the board's squares
+    board_y: float = 0
     glyphs: list[GlyphUse] = field(default_factory=list)
     rects: list[Rect] = field(default_factory=list)
     arrows: list[list[Point]] = field(default_factory=list)
@@ -97,7 +99,7 @@ def layout(
 
     bx = pad + (content_w - diagram_w) / 2 + t
     by = pad + t
-    out = Layout(width, height, (0, 0, width, height) if opts.background else None)
+    out = Layout(width, height, (0, 0, width, height) if opts.background else None, bx, by)
 
     # Squares, figures and walls.
     for r, row in enumerate(board.cells):
@@ -243,7 +245,9 @@ def arrow_polygon(board: Board, spec: str | tuple[str, str], bx: float, by: floa
     ax, ay = bx + (c0 + 0.5) * U, by + (r0 + 0.5) * U
     tx, ty = bx + (c1 + 0.5) * U, by + (r1 + 0.5) * U
     dx, dy = tx - ax, ty - ay
-    length = math.hypot(dx, dy)
+    # sqrt rather than hypot, and no rounding: latex/gcdiagram.lua repeats this arithmetic
+    # and must produce bit-identical results.
+    length = math.sqrt(dx * dx + dy * dy)
     if length == 0:
         raise ValueError(f"arrow {spec!r} starts and ends on the same square")
     ux, uy = dx / length, dy / length
@@ -260,4 +264,4 @@ def arrow_polygon(board: Board, spec: str | tuple[str, str], bx: float, by: floa
         (hx - nx * s, hy - ny * s),
         (ax - nx * s, ay - ny * s),
     ]
-    return [(round(x, 1), round(y, 1)) for x, y in pts]
+    return pts
