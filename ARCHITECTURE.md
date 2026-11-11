@@ -509,6 +509,7 @@ as the CLI writes them.
     arrow (drag from one square to another; doing it again removes the arrow).
   - Drag to move. Right-click or <kbd>Del</kbd> clears; <kbd>R</kbd> and
     <kbd>Shift</kbd>+<kbd>R</kbd> rotate the piece under the pointer.
+  - Help: a modal dialog from the header link.
   - Board size, border, wall style, caption, piece count and square size.
   - FEN field: validated as you type and normalised when you leave it.
   - URL hash state, so a link or a reload restores the diagram.

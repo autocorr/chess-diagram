@@ -380,9 +380,20 @@ function wire(): void {
     const sq = squareAt(e);
     if (sq) void edit(sq, "");
   });
+  // Help: a modal dialog. The link doesn't navigate, because the URL hash holds the diagram.
+  const help = $("help") as HTMLDialogElement;
+  $("help-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    help.showModal();
+  });
+  $("help-close").addEventListener("click", () => help.close());
+  help.addEventListener("click", (e) => {
+    if (e.target === help) help.close(); // a click on the backdrop
+  });
+
   document.addEventListener("keydown", (e) => {
     const target = e.target as HTMLElement;
-    if (target.closest("input, textarea, select") || !hover) return;
+    if (target.closest("input, textarea, select, dialog") || !hover) return;
     if (e.key === "r" || e.key === "R") {
       e.preventDefault();
       rotate(hover, e.shiftKey ? -45 : 45);

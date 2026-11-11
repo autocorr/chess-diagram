@@ -42,6 +42,73 @@ h1 {
   color: var(--error);
 }
 
+#help-link {
+  margin-left: auto;
+  color: var(--accent);
+}
+
+dialog {
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 4rem);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.75rem 1.25rem 1.25rem;
+  background: var(--panel);
+  color: var(--text);
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+dialog h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+dialog h3 {
+  font-size: 1rem;
+  margin: 1rem 0 0.4rem;
+}
+
+dialog ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+dialog li + li {
+  margin-top: 0.25rem;
+}
+
+dialog p {
+  margin: 0 0 0.5rem;
+}
+
+dialog table {
+  border-collapse: collapse;
+}
+
+dialog td {
+  padding: 0.2rem 0.75rem 0.2rem 0;
+  vertical-align: top;
+}
+
+#help-close {
+  border: none;
+  background: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--muted);
+}
+
 main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 22rem;

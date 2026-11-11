@@ -3,14 +3,53 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GC Diagram Editor</title>
+    <title>Chess Diagram Editor</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <header>
-      <h1>GC Diagram Editor</h1>
+      <h1>Chess Diagram Editor</h1>
       <span id="status" data-testid="status" role="status">Loading Python…</span>
+      <a id="help-link" data-testid="help-link" href="#" aria-haspopup="dialog">Help</a>
     </header>
+    <dialog id="help" data-testid="help" aria-labelledby="help-title">
+      <div class="dialog-head">
+        <h2 id="help-title">Help</h2>
+        <button id="help-close" type="button" aria-label="Close help">×</button>
+      </div>
+
+      <h3>Editing the board</h3>
+      <ul>
+        <li><b>Place</b>: click a square to put the selected figure there. Choose the figure under
+          <b>Figure</b>: its colour, its variant (plain, chameleon or mirrored) and its rotation.</li>
+        <li><b>Erase</b>, <b>Hole</b>, <b>Wall</b>: click a square to empty it, remove it from the
+          board, or block it.</li>
+        <li><b>Arrow</b>: drag from one square to another.</li>
+        <li>Drag a figure to move it. Right-click a square to empty it.</li>
+        <li>With the pointer over a square: <kbd>R</kbd> rotates the figure 45° clockwise,
+          <kbd>Shift</kbd>+<kbd>R</kbd> anticlockwise, <kbd>Del</kbd> empties the square.</li>
+      </ul>
+
+      <h3>Extended FEN</h3>
+      <p>Standard FEN works unchanged (<code>KQRBNP</code> white, <code>kqrbnp</code> black, digits
+        for empty squares, <code>/</code> between ranks, top rank first). In addition:</p>
+      <table>
+        <tbody>
+          <tr><td><code>{Q90}</code> <code>{n225}</code></td><td>piece rotated clockwise, in steps of 45°</td></tr>
+          <tr><td><code>{=Q}</code> <code>{=R180}</code></td><td>neutral piece (0/90/180/270°)</td></tr>
+          <tr><td><code>{~B}</code></td><td>chameleon (framed) piece</td></tr>
+          <tr><td><code>{!N90}</code></td><td>mirrored knight (90/180/270°)</td></tr>
+          <tr><td><code>{@Star}</code> <code>{@star}</code> <code>{=@equihopper}</code></td><td>special figure: capital = white, lower case = black, <code>=</code> = neutral</td></tr>
+          <tr><td><code>.</code></td><td>hole: a missing square</td></tr>
+          <tr><td><code>*</code></td><td>wall: a blocked square</td></tr>
+          <tr><td><code>12</code></td><td>multi-digit empty runs, for boards up to 26×26</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Export</h3>
+      <p><b>SVG</b> and <b>PDF</b> download the diagram as shown. <b>TeX</b> downloads a snippet
+        to include with the <code>gcsnippet</code> LaTeX package.</p>
+    </dialog>
     <main>
       <section id="board-pane">
         <div id="board" data-testid="board"></div>

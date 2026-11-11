@@ -75,6 +75,22 @@ test("starts Python and shows the start position", async ({ page }) => {
   await expect(page.locator("#board svg use")).toHaveCount(48);
 });
 
+test("the Help link opens and closes a modal", async ({ page }) => {
+  await open(page);
+  await expect(page).toHaveTitle("Chess Diagram Editor");
+  const help = page.getByTestId("help");
+  await expect(help).toBeHidden();
+  const url = page.url();
+  await page.getByTestId("help-link").click();
+  await expect(help).toBeVisible();
+  expect(page.url()).toBe(url); // the hash holds the diagram, so the link mustn't touch it
+  await page.keyboard.press("Escape");
+  await expect(help).toBeHidden();
+  await page.getByTestId("help-link").click();
+  await page.getByRole("button", { name: "Close help" }).click();
+  await expect(help).toBeHidden();
+});
+
 test("typing a FEN validates it and normalises it", async ({ page }) => {
   await open(page);
   await fen(page).fill("8/7");
