@@ -320,6 +320,42 @@ function pieceToken(kind: string, a = angle): string | null {
   );
 }
 
+/** The angles the fonts have for a piece in the current colour and variant. */
+function anglesFor(kind: string): number[] {
+  return info.pieces.filter((p) => p.kind === kind && p.color === color && p.variant === variant).map((p) => p.angle);
+}
+
+/**
+ * The supported angle closest to the chosen one (ties go clockwise), or null if the
+ * piece doesn't exist in this colour and variant. Mirrored knights, for example, only
+ * exist at 90, 180 and 270 degrees.
+ */
+function nearestAngle(kind: string): number | null {
+  const clockwise = (a: number) => (((a - angle) % 360) + 360) % 360;
+  const distance = (a: number) => Math.min(clockwise(a), 360 - clockwise(a));
+  let best: number | null = null;
+  for (const a of anglesFor(kind)) {
+    const closer = best === null || distance(a) < distance(best);
+    const tieClockwise = best !== null && distance(a) === distance(best) && clockwise(a) < clockwise(best);
+    if (closer || tieClockwise) best = a;
+  }
+  return best;
+}
+
+/**
+ * After a colour, variant or piece change, move to the nearest figure the fonts have
+ * rather than leave nothing selectable: keep the piece if it exists here (snapping the
+ * angle), else take the first piece that does.
+ */
+function settleSelection(): void {
+  if (selection.type !== "piece") return;
+  if (nearestAngle(selection.kind) === null) {
+    const kind = KINDS.find((k) => nearestAngle(k) !== null);
+    if (kind) selection = { type: "piece", kind };
+  }
+  angle = nearestAngle(selection.kind) ?? angle;
+}
+
 function specialToken(name: string): string | null {
   return info.specials[name]?.[color] ?? null;
 }
@@ -368,6 +404,7 @@ function paletteButton(testid: string, title: string, select: Selection, data: R
 }
 
 async function updatePalette(): Promise<void> {
+  settleSelection();
   for (const input of document.querySelectorAll<HTMLInputElement>('input[name="angle"]')) {
     const a = Number(input.value);
     input.disabled = selection.type !== "piece" || pieceToken(selection.kind, a) === null;
@@ -375,7 +412,9 @@ async function updatePalette(): Promise<void> {
   }
   for (const b of document.querySelectorAll<HTMLButtonElement>("#pieces button")) {
     const kind = b.dataset.kind!;
-    const token = pieceToken(kind);
+    // Enabled if the piece exists at any angle; the icon shows the angle it would get.
+    const a = nearestAngle(kind);
+    const token = a === null ? null : pieceToken(kind, a);
     b.disabled = token === null;
     b.setAttribute("aria-pressed", String(selection.type === "piece" && selection.kind === kind));
     b.innerHTML = await icon(token ?? kind);

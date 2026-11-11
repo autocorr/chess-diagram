@@ -157,6 +157,35 @@ test("only offers figures the fonts contain", async ({ page }) => {
   await expect(page.getByTestId("selection")).toHaveText("Selected: {@Star}");
 });
 
+test("Mirrored offers the knight at the angles the fonts have", async ({ page }) => {
+  await open(page);
+  await setFen(page, EMPTY8);
+  await choose(page, "color", "black");
+  await choose(page, "variant", "mirror"); // the queen has no mirrored glyphs: move to the knight
+  await expect(page.getByTestId("selection")).toHaveText("Selected: {!n90}");
+  await expect(page.locator("#pieces button:enabled")).toHaveCount(1);
+  await expect(page.locator('[data-testid="piece-N"]')).toHaveAttribute("aria-pressed", "true");
+  for (const a of ["0", "45", "135", "225", "315"]) {
+    await expect(page.locator(`input[name="angle"][value="${a}"]`)).toBeDisabled();
+  }
+  await choose(page, "angle", "270");
+  await expect(page.getByTestId("selection")).toHaveText("Selected: {!n270}");
+  await clickSquare(page, "e4");
+  await expect(fen(page)).toHaveValue("8/8/8/8/4{!n270}3/8/8/8");
+  // Back to plain: the knight and its angle carry over.
+  await choose(page, "variant", "plain");
+  await expect(page.getByTestId("selection")).toHaveText("Selected: {n270}");
+  // An angle the variant lacks snaps to the nearest one: 45 to 90, and 135 (as near 90
+  // as 180) clockwise to 180.
+  await choose(page, "angle", "45");
+  await choose(page, "variant", "mirror");
+  await expect(page.getByTestId("selection")).toHaveText("Selected: {!n90}");
+  await choose(page, "variant", "plain");
+  await choose(page, "angle", "135");
+  await choose(page, "variant", "mirror");
+  await expect(page.getByTestId("selection")).toHaveText("Selected: {!n180}");
+});
+
 test("rotates with R, moves by dragging, deletes with Delete", async ({ page }) => {
   await open(page);
   await setFen(page, "8/8/8/8/4{=N90}3/8/8/8");

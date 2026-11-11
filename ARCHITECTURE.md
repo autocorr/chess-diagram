@@ -508,6 +508,11 @@ as the CLI writes them.
 - **UI** (`main.ts`, no framework): it only handles input and display.
   - The Figure box lists the piece and special icons first, then the colour, variant
     and rotation controls, which disable whatever the fonts don't contain.
+    A piece is offered if it exists at any angle in the chosen colour and variant, and
+    the angle snaps to the nearest one it has (ties clockwise); if the selected piece
+    doesn't exist there at all, the first that does is selected. Without this, choosing
+    Mirrored at 0° would leave nothing selectable, since mirrored knights only exist at
+    90°, 180° and 270°.
   - Tools: place (clicking the same figure again removes it), erase, hole, wall and
     arrow (drag from one square to another; doing it again removes the arrow).
   - Drag to move. Right-click or <kbd>Del</kbd> clears; <kbd>R</kbd> and
