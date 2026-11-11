@@ -18,8 +18,10 @@ class RenderOptions:
              "outline" single line that follows the board shape, no rectangular frame
              "none"    no border and no lines around holes
              With "single" and "double", edges of squares next to holes get single lines.
-    caption: lines of text centred under the board (stipulation, author, ...).
-    piece_count: add "(w+b)" or "(w+b+n)" right-aligned under the board.
+    caption: lines of text under the board (stipulation, author, ...), left-aligned and
+             wrapped at spaces to the diagram's width.
+    piece_count: add "(w+b)" or "(w+b+n)" right-aligned under the board, on the
+             caption's first line; the caption wraps before it.
     arrows:  square pairs such as "e2-e4" or ("e2", "e4").
     wall:    "solid" fills blocked squares black; "box" uses the framed GC2004D box.
     square_size: size of one square in points (PDF) or CSS pt (SVG).

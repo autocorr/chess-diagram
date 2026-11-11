@@ -64,7 +64,7 @@ def test_transparent_background() -> None:
 
 
 def test_caption_is_escaped() -> None:
-    out = render_svg(parse("K"), RenderOptions(caption=["<h#2> & more"]))
+    out = render_svg(parse("K7"), RenderOptions(caption=["<h#2> & more"]))
     assert "&lt;h#2&gt; &amp; more" in out
     ET.fromstring(out)
 

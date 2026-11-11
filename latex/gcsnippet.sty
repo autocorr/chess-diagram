@@ -7,6 +7,7 @@
 %                         (preamble only; omit if the fonts are installed)
 %   \gcsquaresize{<dim>}  size of one square (default 20pt)
 %   \gccaptionfont        font switch for captions (default \small)
+%   \gccountgap           space kept between the caption and the piece count (default 1em)
 %
 % Coordinates in \gcbox bodies are numbers of squares, measured from the bottom-left
 % corner of the diagram with y pointing up.
@@ -25,6 +26,8 @@
 \newcommand\gcsquaresize[1]{\gcsquare=#1\relax}
 \newcommand\gccaptionfont{\small}
 \newcommand\gccaptiongap{.3\gcsquare}
+\newcommand\gccountgap{1em}
+\newbox\gc@countbox
 
 \def\gc@fontpath{}
 \newcommand\gcfontpath[1]{\def\gc@fontpath{#1}}
@@ -84,13 +87,33 @@
       \end{pgfpicture}}%
     \gc@caption{#1}{#4}{#5}}}
 
+% The caption is set ragged-right across the diagram's width, and the piece count
+% flush right on its first line. \parshape shortens only that first line, by the count
+% and \gccountgap, so a long caption wraps before the count instead of running into it.
+% Each \\ (or \\[<space>]) starts a new paragraph, so lines after it have the full
+% width; unlike LaTeX's own, it may end an empty line, so blank caption lines work.
+\def\gc@cr{\@ifstar\gc@xcr\gc@xcr}
+\def\gc@xcr{\@ifnextchar[\gc@ycr{\gc@ycr[\z@]}}
+\def\gc@ycr[#1]{\par\vskip#1\relax\leavevmode}
 \def\gc@caption#1#2#3{%
   \def\gc@tmp{#2#3}%
   \ifx\gc@tmp\@empty\else
     \nointerlineskip\vskip\gccaptiongap
-    \hbox to #1\gcsquare{%
+    \vbox{%
+      \hsize=#1\gcsquare
       \gccaptionfont
-      \hss\begin{tabular}[t]{@{}c@{}}#2\end{tabular}\hss
-      \llap{#3}}%
+      \raggedright
+      \parindent=\z@ \parskip=\z@
+      \everypar{\strut}%
+      \let\\\gc@cr
+      \setbox\gc@countbox=\hbox{#3}%
+      \dimen@=\hsize
+      \ifdim\wd\gc@countbox>\z@
+        \advance\dimen@ by -\wd\gc@countbox
+        \advance\dimen@ by -\gccountgap
+      \fi
+      \parshape 2 \z@ \dimen@ \z@ \hsize
+      \leavevmode\rlap{\hskip\hsize\llap{\box\gc@countbox}}%
+      #2\par}%
   \fi}
 \endinput

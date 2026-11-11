@@ -3,8 +3,9 @@ from __future__ import annotations
 import pytest
 
 from gcdiagram.fen import parse
-from gcdiagram.geometry import SINGLE, U, border_rects, layout, parse_arrow
+from gcdiagram.geometry import LINE_HEIGHT, SINGLE, Layout, U, border_rects, layout, parse_arrow
 from gcdiagram.options import RenderOptions
+from gcdiagram.textmetrics import text_width
 
 
 def covered(rects: list, x: float, y: float) -> bool:
@@ -77,19 +78,61 @@ def test_walls() -> None:
     assert lay.glyphs[0].key == "special:box:none:dark"
 
 
-def test_caption_and_piece_count() -> None:
+def test_caption_left_and_piece_count_right() -> None:
     lay = layout(parse("K6k/8"), RenderOptions(caption=["#2"], piece_count=True))
     texts = {t.text: t for t in lay.texts}
     assert set(texts) == {"#2", "(1+1)"}
-    assert texts["(1+1)"].anchor == "end"
+    # Flush with the frame's outer edges, on the same baseline.
+    assert (texts["#2"].x, texts["#2"].anchor) == (0, "start")
+    assert (texts["(1+1)"].x, texts["(1+1)"].anchor) == (lay.width, "end")
+    assert texts["#2"].y == texts["(1+1)"].y
     assert lay.height > 2 * U + 200
     lay = layout(parse("{=Q}"), RenderOptions(piece_count=True))
     assert [t.text for t in lay.texts] == ["(0+0+1)"]
 
 
-def test_wide_caption_widens_diagram() -> None:
+def _caption_lines(lay: Layout) -> list[tuple[float, str]]:
+    return [(t.y, t.text) for t in lay.texts if t.anchor == "start"]
+
+
+def test_caption_wraps_before_the_piece_count() -> None:
+    caption = ["Helpmate in 2, set play and two solutions"]
+    opts = RenderOptions(caption=caption, piece_count=True)
+    lay = layout(parse("K6k/8"), opts)
+    assert lay.width == layout(parse("K6k/8")).width  # wraps rather than widening
+    lines = _caption_lines(lay)
+    assert len(lines) > 1
+    assert " ".join(text for _, text in lines) == caption[0]
+    count = next(t for t in lay.texts if t.anchor == "end")
+    size = opts.caption_size * U
+    # The first line ends at least one caption em before the count starts...
+    first = lines[0][1]
+    assert text_width(first, size) + size <= count.x - text_width(count.text, size)
+    # ...and later lines use the full width, below it.
+    assert all(text_width(text, size) <= lay.width for _, text in lines[1:])
+    assert all(y > count.y for y, _ in lines[1:])
+
+
+def test_count_takes_room_only_on_the_first_line() -> None:
+    caption = ["Helpmate in 2, set play and two tries"]  # 14506 units; 8 squares are 16200
+    plain = _caption_lines(layout(parse("8"), RenderOptions(caption=caption)))
+    counted = _caption_lines(layout(parse("8"), RenderOptions(caption=caption, piece_count=True)))
+    assert len(plain) == 1 and len(counted) == 2  # it fits alone, not beside the count
+
+
+def test_explicit_caption_lines_stay_separate() -> None:
+    opts = RenderOptions(caption=["#2", "", "J. Smith"])
+    lines = _caption_lines(layout(parse("K6k"), opts))
+    assert [text for _, text in lines] == ["#2", "J. Smith"]
+    pitch = opts.caption_size * U * LINE_HEIGHT
+    assert lines[1][0] - lines[0][0] == pytest.approx(2 * pitch)  # the blank line is kept
+
+
+def test_only_an_overlong_word_widens_the_diagram() -> None:
     lay = layout(parse("K"), RenderOptions(caption=["a very long caption line"]))
-    assert lay.width > U + 200
+    assert [text for _, text in _caption_lines(lay)] == ["a very", "long", "caption", "line"]
+    size = RenderOptions().caption_size * U
+    assert lay.width == pytest.approx(text_width("caption", size))
 
 
 @pytest.mark.parametrize("spec", ["e2-e4", "e2e4", "e2 > e4", "e2xe4", ("e2", "e4")])

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -20,6 +21,7 @@ U = 2000  # one square
 SINGLE = 100  # single border line thickness (GC2004D)
 DOUBLE_THIN, DOUBLE_GAP, DOUBLE_THICK = 50, 100, 200  # GC2004Y double border
 CAPTION_GAP = 0.3 * U
+COUNT_GAP = 1.0  # space kept between the caption and the piece count, in caption ems
 LINE_HEIGHT = 1.25
 
 ARROW_SHAFT = 200
@@ -78,18 +80,23 @@ def layout(
     t = frame_thickness(opts.border)
     board_w, board_h = board.width * U, board.height * U
 
-    # Caption lines (centred) and the piece count (right-aligned on the first line).
+    # The caption is left-aligned and the piece count right-aligned on its first line.
+    # The caption wraps at spaces to the diagram's width, its first line stopping short
+    # of the count; only a word too long for any line widens the diagram.
     size = opts.caption_size * U
-    lines = list(opts.caption)
     count = board.piece_count_label() if opts.piece_count else ""
+    count_w = text_width(count, size) + COUNT_GAP * size if count else 0
+    diagram_w = board_w + 2 * t
+    words = [w for line in opts.caption for w in line.split()]
+    first_words = (opts.caption[0].split() if opts.caption else [])[:1]
+    content_w = max(
+        [diagram_w]
+        + [text_width(w, size) for w in words]
+        + [count_w + text_width(w, size) for w in first_words],
+    )
+    lines = wrap_caption(opts.caption, size, content_w, count_w)
     if count and not lines:
         lines = [""]
-    text_w = max(
-        [text_width(line, size) for line in lines]
-        + [text_width(lines[0], size) + 2 * text_width(count, size) + size if count else 0],
-    )
-    diagram_w = board_w + 2 * t
-    content_w = max(diagram_w, text_w)
     width = content_w + 2 * pad
     caption_h = (CAPTION_GAP + len(lines) * size * LINE_HEIGHT) if lines else 0
     height = board_h + 2 * t + caption_h + 2 * pad
@@ -114,13 +121,34 @@ def layout(
 
     if lines:
         baseline = by + board_h + t + CAPTION_GAP + size * 0.8
-        centre = pad + content_w / 2
         for i, line in enumerate(lines):
             if line:
-                out.texts.append(Text(centre, baseline + i * size * LINE_HEIGHT, size, line))
+                out.texts.append(Text(pad, baseline + i * size * LINE_HEIGHT, size, line, "start"))
         if count:
-            right = bx + board_w + t if text_w <= diagram_w else pad + content_w
-            out.texts.append(Text(right, baseline, size, count, "end"))
+            out.texts.append(Text(pad + content_w, baseline, size, count, "end"))
+    return out
+
+
+def wrap_caption(caption: Sequence[str], size: float, width: float, count_w: float) -> list[str]:
+    """Break caption lines at spaces so each fits in width, the first line in width -
+    count_w (beside the piece count). Explicit lines stay separate. A word too long for
+    its line is put on it anyway (the caller makes the width fit every word)."""
+    out: list[str] = []
+    for line in caption:
+        words = line.split()
+        if not words:
+            out.append("")
+            continue
+        current = ""
+        for word in words:
+            candidate = f"{current} {word}" if current else word
+            room = width - (count_w if not out else 0)
+            if current and text_width(candidate, size) > room:
+                out.append(current)
+                current = word
+            else:
+                current = candidate
+        out.append(current)
     return out
 
 

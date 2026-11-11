@@ -38,5 +38,16 @@
     "options": {
       "square_size": 12
     }
+  },
+  "caption": {
+    "fen": "4k3/8/4K3/8/8/8/8/R7",
+    "options": {
+      "caption": [
+        "Mate in 2, with set play and a try that fails to one defence",
+        "",
+        "After J. Smith"
+      ],
+      "piece_count": true
+    }
   }
 }

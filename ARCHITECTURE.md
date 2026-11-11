@@ -327,8 +327,11 @@ is 2000, y points down) and is scaled at output time. A `Layout` contains:
   is drawn with the framed `special:box:none` glyph instead.
 - **`arrows`:** 7-point polygons from the centre of the start square to the tip at the
   centre of the target square.
-- **`texts`:** caption lines centred under the board, plus the optional piece count
-  right-aligned on the first line. Widths use Helvetica metrics (`textmetrics.py`).
+- **`texts`:** caption lines left-aligned under the board, plus the optional piece
+  count right-aligned on the first line. The caption wraps at spaces to the diagram's
+  width, and its first line stops one caption em (`COUNT_GAP`) short of the count, so
+  the two never collide. Only a word too long for any line widens the diagram. Widths
+  use Helvetica metrics (`textmetrics.py`).
 
 The border options are:
 
@@ -408,8 +411,10 @@ in `latex/gcsnippet.sty`:
 - **Drawing:** `gcsnippet.sty` uses only the pgf basic layer: rectangles and polygons
   are filled paths, and arrow opacity uses `\pgfsetfillopacity`. Bounding boxes are set
   explicitly, so the box is exactly `width × height` squares. Captions are set in the
-  document font (`\gccaptionfont`, default `\small`), centred, with the count
-  right-aligned on the first line.
+  document font (`\gccaptionfont`, default `\small`), ragged-right across the
+  diagram's width, with the count right-aligned on the first line. `\parshape` shortens
+  that first line by the count and `\gccountgap` (default 1em), so TeX wraps the caption
+  before the count, as the SVG and PDF layout does.
 - **Fonts:** loaded once at `\begin{document}` with `fontspec`, from `\gcfontpath{dir/}`
   or the system. Kerning is off, because GC2004Y has a `kern` table. Works with
   LuaLaTeX and XeLaTeX. pdfLaTeX would need a Type 1 conversion, which is out of scope.
