@@ -11,13 +11,13 @@ import pytest
 from gcdiagram.cli import main
 from gcdiagram.editor import options_from
 from gcdiagram.fen import parse
-from gcdiagram.geometry import CAPTION_GAP, LINE_HEIGHT, U, layout, wrap_caption
+from gcdiagram.geometry import ASCENT, CAPTION_GAP, LINE_HEIGHT, U, layout, wrap_caption
 from gcdiagram.markup import Run, parse_markup
 from gcdiagram.options import RenderOptions
 from gcdiagram.render.pdf import render_pdf
 from gcdiagram.render.svg import render_svg
 from gcdiagram.render.tex import caption_tex, render_tex
-from gcdiagram.textmetrics import text_width
+from gcdiagram.textmetrics import CAP_HEIGHT, text_width
 
 SVG = "{http://www.w3.org/2000/svg}"
 
@@ -63,10 +63,24 @@ def test_caption_above_is_left_aligned_over_the_board() -> None:
     assert (above.text, first.text, below.text) == ("J. Smith", "The Problemist", "#2")
     assert above.x == first.x == below.x == 0
     assert first.y - above.y == pytest.approx(pitch)
-    assert lay.board_y == pytest.approx(2 * pitch + CAPTION_GAP + 100)  # 100: single frame
+    # The last baseline above is CAPTION_GAP from the frame (100 units thick).
+    assert lay.board_y - 100 - first.y == pytest.approx(CAPTION_GAP)
+    assert lay.board_y == pytest.approx(ASCENT * size + pitch + CAPTION_GAP + 100)
     assert below.y > lay.board_y + 2 * U
     plain_lay = layout(parse("8/8"), RenderOptions(caption=["#2"]))
-    assert lay.height == pytest.approx(plain_lay.height + 2 * pitch + CAPTION_GAP)
+    assert lay.height == pytest.approx(plain_lay.height + ASCENT * size + pitch + CAPTION_GAP)
+
+
+def test_captions_sit_the_same_distance_from_the_frame() -> None:
+    # Above: frame to the last baseline. Below: frame to the top of the capitals.
+    opts = RenderOptions(caption_above=["J. Smith"], caption=["#2"])
+    lay = layout(parse("8/8"), opts)
+    above, below = lay.texts
+    top = lay.board_y - 100
+    bottom = lay.board_y + 2 * U + 100
+    cap = CAP_HEIGHT * opts.caption_size * U
+    assert top - above.y == pytest.approx(CAPTION_GAP)
+    assert (below.y - cap) - bottom == pytest.approx(CAPTION_GAP)
 
 
 def test_long_word_above_widens_the_diagram() -> None:
@@ -96,7 +110,7 @@ def test_pdf_switches_fonts_within_a_line() -> None:
     assert b"/BaseFont/Helvetica-Bold/" in pdf and b"/BaseFont/Helvetica-Oblique/" in pdf
     assert b"/BaseFont/Helvetica/" not in pdf  # no plain run, so no plain font
     # Fonts are numbered by style: F1 italic, F2 bold.
-    line = r"BT/F2 900 Tf 1 0 0 -1 0 \d+ Tm \(#2 \)Tj/F1 900 Tf\(set\)Tj ET"
+    line = r"BT/F2 900 Tf 1 0 0 -1 0 [\d.]+ Tm \(#2 \)Tj/F1 900 Tf\(set\)Tj ET"
     assert re.search(line, _content(pdf))
 
 

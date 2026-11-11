@@ -25,9 +25,14 @@
 \gcsquare=20pt
 \newcommand\gcsquaresize[1]{\gcsquare=#1\relax}
 \newcommand\gccaptionfont{\small}
-\newcommand\gccaptiongap{.3\gcsquare}
+% The visible space between the frame and the captions: from the baseline of the last
+% line above (descenders hang into it), and from the cap height of the first line below.
+\newcommand\gccaptiongap{.2\gcsquare}
 \newcommand\gccountgap{1em}
 \newbox\gc@countbox
+\newbox\gc@captionbox
+\newdimen\gc@capheight
+\newdimen\gc@strutheight
 
 \def\gc@fontpath{}
 \newcommand\gcfontpath[1]{\def\gc@fontpath{#1}}
@@ -129,19 +134,22 @@
   \raggedright
   \parindent=\z@ \parskip=\z@
   \everypar{\strut}%
+  \global\gc@capheight=\fontcharht\font`H\relax
+  \global\gc@strutheight=\ht\strutbox
   \let\\\gc@cr}
 % The caption above the board: ragged-right across the diagram's width, no count.
 \def\gc@above#1#2{%
   \def\gc@tmp{#2}%
   \ifx\gc@tmp\@empty\else
-    \vbox{\gc@captionsetup{#1}\leavevmode#2\par}%
-    \nointerlineskip\vskip\gccaptiongap
+    \setbox\gc@captionbox=\vbox{\gc@captionsetup{#1}\leavevmode#2\par}%
+    \dimen@=\dp\gc@captionbox
+    \box\gc@captionbox
+    \nointerlineskip\vskip\dimexpr\gccaptiongap-\dimen@\relax
   \fi}
 \def\gc@caption#1#2#3{%
   \def\gc@tmp{#2#3}%
   \ifx\gc@tmp\@empty\else
-    \nointerlineskip\vskip\gccaptiongap
-    \vbox{%
+    \setbox\gc@captionbox=\vbox{%
       \gc@captionsetup{#1}%
       \setbox\gc@countbox=\hbox{#3}%
       \dimen@=\hsize
@@ -152,5 +160,9 @@
       \parshape 2 \z@ \dimen@ \z@ \hsize
       \leavevmode\rlap{\hskip\hsize\llap{\box\gc@countbox}}%
       #2\par}%
+    % The first line is a strut high (taller content aside), so its capitals start
+    % \gc@strutheight - \gc@capheight below the box's top.
+    \nointerlineskip\vskip\dimexpr\gccaptiongap+\gc@capheight-\gc@strutheight\relax
+    \box\gc@captionbox
   \fi}
 \endinput

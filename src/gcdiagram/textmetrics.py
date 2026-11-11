@@ -30,6 +30,8 @@ _ASCII_BOLD = (
 )  # fmt: skip
 assert len(_ASCII_BOLD) == 95
 
+CAP_HEIGHT = 0.718  # Helvetica's (and Helvetica-Bold's) CapHeight, in ems
+
 DEFAULT_WIDTH = 556
 DEFAULT_WIDTH_BOLD = 611
 

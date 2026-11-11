@@ -39,7 +39,7 @@ type Selection = { type: "piece"; kind: string } | { type: "special"; name: stri
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const boardEl = $<HTMLDivElement>("board");
-const fenInput = $<HTMLInputElement>("fen");
+const fenInput = $<HTMLTextAreaElement>("fen");
 const fenError = $<HTMLParagraphElement>("fen-error");
 const statusEl = $<HTMLSpanElement>("status");
 
@@ -173,7 +173,7 @@ function syncControls(): void {
   if (!view) return;
   // Never overwrite a field the user is typing in.
   const set = (id: string, value: string) => {
-    const el = $<HTMLInputElement>(id);
+    const el = $<HTMLInputElement | HTMLTextAreaElement>(id);
     if (document.activeElement !== el) el.value = value;
   };
   const o = state.options;
@@ -531,10 +531,8 @@ async function updatePalette(): Promise<void> {
     const tokens = info.specials[name] ?? {};
     b.innerHTML = await icon(token ?? tokens.white ?? tokens.neutral ?? tokens.black ?? "");
   }
-  // Only shown when the GC fonts lack the chosen figure.
-  const note = $("selection");
-  note.hidden = selectedToken() !== null;
-  note.textContent = note.hidden ? "" : "Not available in the GC fonts";
+  const token = selectedToken();
+  $("selection").textContent = token ? `Selected: ${token}` : "Not available in the GC fonts";
 }
 
 // --- Event wiring -----------------------------------------------------------------------
@@ -684,10 +682,18 @@ function wire(): void {
     }
   });
 
-  // FEN: validate and preview while typing; normalize when the field is left.
+  // FEN: validate and preview while typing; normalize when the field is left (or on Enter).
+  // The field is a resizable text area so long FENs can be seen whole, but a FEN is one
+  // line: Enter doesn't add a line break, and pasted ones are dropped.
   fenInput.addEventListener("input", () => {
+    if (/[\r\n]/.test(fenInput.value)) fenInput.value = fenInput.value.replace(/[\r\n]+/g, "");
     const text = fenInput.value;
     void enqueue(() => refresh(text));
+  });
+  fenInput.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    fenInput.blur(); // commits it: the change event normalizes the field
   });
   fenInput.addEventListener("change", () => void enqueue(refresh));
   $("copy-fen").addEventListener("click", () => void navigator.clipboard.writeText(state.fen));

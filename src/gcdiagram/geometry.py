@@ -18,15 +18,22 @@ from .catalog import Catalog, load_catalog
 from .markup import Run, parse_markup
 from .options import RenderOptions
 from .svgpath import Segment
-from .textmetrics import text_width
+from .textmetrics import CAP_HEIGHT, text_width
 
 U = 2000  # one square
 SINGLE = 100  # single border line thickness (GC2004D)
 WALL_FILL = "#666666"  # a solid wall's interior: 40% gray, outlined in black
 DOUBLE_THIN, DOUBLE_GAP, DOUBLE_THICK = 50, 100, 200  # GC2004Y double border
-CAPTION_GAP = 0.3 * U
+# The visible space between the frame and the captions: from the baseline of the last
+# line above (descenders hang into it), and from the cap height of the first line below.
+CAPTION_GAP = 0.2 * U
 COUNT_GAP = 1.0  # space kept between the caption and the piece count, in caption ems
 LINE_HEIGHT = 1.25
+# The diagram's edge sits this far (in caption ems) above the first baseline of the top
+# caption and below the last baseline of the bottom one: just clear of Helvetica's
+# capitals (0.718) and descenders (0.207).
+ASCENT = 0.8
+DESCENT = 0.25
 
 ARROW_SHAFT = 200
 ARROW_HEAD_LENGTH = 640
@@ -133,8 +140,15 @@ def layout(
     if count and not lines:
         lines = [()]
     width = content_w + 2 * pad
-    above_h = (len(above) * pitch + CAPTION_GAP) if above else 0
-    caption_h = (CAPTION_GAP + len(lines) * pitch) if lines else 0
+    # Above: the first baseline ASCENT below the top, the last CAPTION_GAP above the frame.
+    # Below: the first line's capitals CAPTION_GAP under the frame, the last baseline
+    # DESCENT above the bottom.
+    above_h = (ASCENT * size + (len(above) - 1) * pitch + CAPTION_GAP) if above else 0
+    caption_h = (
+        (CAPTION_GAP + CAP_HEIGHT * size + (len(lines) - 1) * pitch + DESCENT * size)
+        if lines
+        else 0
+    )
     height = above_h + board_h + 2 * t + caption_h + 2 * pad
 
     bx = pad + (content_w - diagram_w) / 2 + t
@@ -160,9 +174,9 @@ def layout(
 
     for i, line in enumerate(above):
         if line:
-            out.texts.append(Text(pad, pad + size * 0.8 + i * pitch, size, line, "start"))
+            out.texts.append(Text(pad, pad + ASCENT * size + i * pitch, size, line, "start"))
     if lines:
-        baseline = by + board_h + t + CAPTION_GAP + size * 0.8
+        baseline = by + board_h + t + CAPTION_GAP + CAP_HEIGHT * size
         for i, line in enumerate(lines):
             if line:
                 out.texts.append(Text(pad, baseline + i * pitch, size, line, "start"))

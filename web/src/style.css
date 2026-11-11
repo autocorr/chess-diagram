@@ -418,6 +418,23 @@ button {
 
 #fen {
   font-family: ui-monospace, monospace;
+  width: 100%;
+  resize: vertical;
+}
+
+/* Board size: files, ranks (at most two digits) and the two buttons on one line. */
+#board-size .row {
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+}
+
+#board-size input[type="number"] {
+  width: 3rem;
+  min-width: 0;
+}
+
+#board-size button {
+  flex: none;
 }
 
 #fen.invalid {

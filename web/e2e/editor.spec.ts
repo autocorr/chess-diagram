@@ -144,6 +144,10 @@ test("typing a FEN validates it and normalizes it", async ({ page }) => {
   await expect(page.getByTestId("fen-error")).toHaveText("");
   await expect(page.locator("#board svg use[data-square='b2']")).toHaveCount(1);
   expect(page.url()).toContain(encodeURIComponent("Q{=Q}6/8"));
+  // A FEN is one line: Enter normalizes it rather than adding a line break.
+  await fen(page).fill("{K0}7/8");
+  await fen(page).press("Enter");
+  await expect(fen(page)).toHaveValue("K7/8");
 });
 
 test("places, toggles and clears pieces", async ({ page }) => {
@@ -152,6 +156,7 @@ test("places, toggles and clears pieces", async ({ page }) => {
   await choose(page, "color", "black");
   await page.locator('[data-testid="piece-R"]').click();
   await choose(page, "angle", "90");
+  await expect(page.getByTestId("selection")).toHaveText("Selected: {r90}");
   expect(await selected(page)).toBe("{r90}");
   await clickSquare(page, "e4");
   await expect(fen(page)).toHaveValue("8/8/8/8/4{r90}3/8/8/8");
