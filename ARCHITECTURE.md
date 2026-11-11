@@ -116,13 +116,15 @@ chess-diagram-generator/
 │   ├── catalog_spec.py             # hand-written table: semantic key → (font, code)
 │   └── contact_sheet.py            # renders every catalog entry for visual checking
 ├── src/gcdiagram/
-│   ├── __init__.py                 # public API: parse(), render_svg(), render_pdf(), render_tex()
+│   ├── __init__.py                 # public API: parse(), serialize(), render_svg(), render_pdf()
 │   ├── data/catalog.json           # generated, committed
 │   ├── catalog.py                  # loads catalog, resolves (Figure, Shade) → Glyph
 │   ├── fen.py                      # extended-FEN tokenizer/parser/serializer
 │   ├── board.py                    # board model (cells, figures, shades)
 │   ├── geometry.py                 # layout: cell rects, border segments, hole outlines, arrows
 │   ├── options.py                  # RenderOptions (border style, caption, arrows, scale, …)
+│   ├── svgpath.py                  # outline parsing; compact SVG and cubic PDF encodings
+│   ├── textmetrics.py              # Helvetica widths for caption layout
 │   ├── render/
 │   │   ├── svg.py
 │   │   ├── pdf.py                  # minimal PDF 1.4 writer (paths + Flate + Helvetica caption)
@@ -139,7 +141,8 @@ chess-diagram-generator/
 │   └── public/catalog.json         # copied from src/gcdiagram/data at build
 └── tests/
     ├── vectors.json                # shared FEN conformance cases
-    ├── test_fen.py, test_render.py, …
+    ├── cases.py                    # representative diagrams for renderer tests
+    ├── test_*.py
     └── golden/                     # golden SVG outputs
 ```
 
@@ -278,50 +281,64 @@ Ranks are numbered `1`, `2`, … from the bottom. For example, `e2` and `j10`.
 ## 6. Board model (`board.py`)
 
 ```python
-Color  = Literal["white", "black", "neutral"]
-Shade  = Literal["light", "dark"]
+Color        = Literal["white", "black", "neutral"]
+SpecialColor = Literal["white", "black", "neutral", "none"]
+Variant      = Literal["plain", "chameleon", "mirror"]
+Shade        = Literal["light", "dark"]
 
-@dataclass(frozen=True) class Piece:     kind: str; color: Color; angle: int = 0; chameleon: bool = False
-@dataclass(frozen=True) class Special:   name: str; color: Color | None
+@dataclass(frozen=True) class Piece:    kind: str; color: Color; angle: int = 0; variant: Variant = "plain"
+@dataclass(frozen=True) class Special:  name: str; color: SpecialColor
 Figure = Piece | Special
 
-@dataclass(frozen=True) class Square:    figure: Figure | None = None
-@dataclass(frozen=True) class Hole:      pass
-@dataclass(frozen=True) class Wall:      pass
-Cell   = Square | Hole | Wall
+@dataclass(frozen=True) class Square:   figure: Figure | None = None
+@dataclass(frozen=True) class Hole:     ...
+@dataclass(frozen=True) class Wall:     ...
+Cell = Square | Hole | Wall
 
 @dataclass class Board:
-    width: int; height: int
-    cells: list[list[Cell]]          # cells[row][col], row 0 = top
-    def shade(self, row, col) -> Shade   # a1 (bottom-left) is dark; holes do not affect parity
+    cells: list[list[Cell]]                  # cells[row][col], row 0 = top rank
+    width, height                            # properties
+    shade(row, col) -> Shade                 # a1 (bottom-left) is dark on every board size
+    board["e4"], board[(row, col)]           # get/set by square name or position
+    is_board_square(row, col)                # squares and walls; False for holes/off-board
+    piece_count() -> (white, black, neutral)
 ```
 
-The model knows nothing about rendering. `catalog.resolve(figure, shade) -> Glyph` is the
-only connection between the model and the fonts.
+The model knows nothing about rendering. The only connection between the model and the
+fonts is `Catalog.figure_glyph(figure, shade)` in `catalog.py`, along with
+`Catalog.supports(figure)`, which the parser uses for validation.
 
 ---
 
 ## 7. Layout (`geometry.py`)
 
-All renderers share one layout step. It works in font units (cell = 2000) and is scaled
-at output time.
+All renderers share `layout(board, options) -> Layout`. It works in font units (a square
+is 2000, y points down) and is scaled at output time. A `Layout` contains:
 
-- **Cells:** a rectangle per `(row, col)` plus the glyph id for the figure or empty square.
-- **Border:**
-  - *Single style:* a line wherever a square cell meets a hole or the outside. The board
-    edge and the edges of holes are handled the same way, so irregular boards come out
-    right without extra code.
-  - *Double style:* the outer border uses the GC2004Y double-border and corner geometry.
-    Hole edges use single lines.
-- **Walls:** a solid filled cell, with a configurable fill.
-- **Arrows:** a list of `from-to` square pairs. Each is drawn as a vector shaft and
-  arrowhead between square centres, with configurable width and opacity. Glyph markers
-  from the catalog (`symbol:*`) can also be placed on squares as overlays.
-- **Caption:** zero or more text lines under the board (stipulation, author, piece count).
-  The piece count `(w+b)` can be computed from the board automatically.
+- **`glyphs`:** `GlyphUse(key, x, y, square)` for every non-blank cell. Empty light squares
+  are blank glyphs and are skipped.
+- **`rects`:** filled rectangles for borders and solid walls. With `wall="box"`, a wall
+  is drawn with the framed `special:box:none` glyph instead.
+- **`arrows`:** 7-point polygons from the centre of the start square to the tip at the
+  centre of the target square.
+- **`texts`:** caption lines centred under the board, plus the optional piece count
+  right-aligned on the first line. Widths use Helvetica metrics (`textmetrics.py`).
 
-Vector borders are drawn as filled rectangles rather than stroked lines, so they match the
-glyph borders pixel for pixel and don't depend on stroke-join settings.
+The border options are:
+
+| `border` | Frame | Lines around holes |
+|---|---|---|
+| `single` (default) | 100-unit ring around the bounding rectangle | yes, single |
+| `double` | 50 thin + 100 gap + 200 thick (GC2004Y proportions) | yes, single |
+| `outline` | none: a single line follows the board's shape | yes (part of the outline) |
+| `none` | none | no |
+
+Hole lines are drawn outside the squares, in the hole's cell, like the GC border glyphs.
+For every exposed edge of a square (or wall), the layout emits a 100-unit rectangle, plus
+a corner square wherever two exposed edges meet at a convex corner. Concave corners close
+because the two rectangles overlap. Collinear rectangles are then merged, so a plain
+board's border is just four rectangles. Borders are filled rectangles rather than stroked
+lines, so they can't depend on stroke-join settings.
 
 ---
 
@@ -329,25 +346,33 @@ glyph borders pixel for pixel and don't depend on stroke-join settings.
 
 ### 8.1 SVG (`render/svg.py`)
 
-- Each distinct glyph is drawn once in a `<symbol>` (or `<path>`) inside `<defs>`, and each
-  cell is a `<use href="#gN" x y>`.
-- `viewBox` is in font units with `width`/`height` in pt or px, so outline coordinates stay
-  integers and nothing needs rounding.
-- Optimisations: integer coordinates, relative path commands with redundant segments
-  dropped, minimal whitespace, and no unused defs.
-- Optional `data-square="e4"` attributes on cells, used by the web editor and handy for
-  scripting.
+- Each glyph outline used is defined once as `<path id>` in `<defs>`, and each cell is a
+  `<use href="#…" x y>`. Ids are short (`ga`, `gb`, …) with a configurable prefix, so
+  several diagrams can be inlined in one HTML page.
+- Path data is re-encoded by `svgpath.py` as relative commands with minimal separators,
+  about 21% smaller than the catalog form. The `viewBox` is in font units, so coordinates
+  stay integers. Width and height are given in pt.
+- All border and wall rectangles form a single `<path>`, and so do all arrows.
+- Options: `xlink=True` writes `xlink:href` for SVG 1.1 tools (the Inkscape here needs
+  it); `annotate=True` adds `data-square="e4"` to each `<use>` for scripting and the web
+  editor.
+- Captions use `font-family="Helvetica,Arial,sans-serif"`.
+- Size: a full starting position is about 26 KB. Most of that is the dark-square hatching,
+  which the font repeats inside every piece-on-dark glyph.
 
 ### 8.2 PDF (`render/pdf.py`)
 
-- A minimal PDF 1.4 writer with no dependencies: a catalog, one page, and a content stream
-  compressed with Flate.
-- Each distinct glyph becomes a Form XObject that is reused with `Do`, the PDF equivalent
-  of SVG `<use>`.
-- Captions use standard Helvetica (one of the 14 base fonts, never embedded) by default. An
-  embedded text font is optional.
-- The page is cropped exactly to the diagram plus margins, so the PDF can be included
-  as-is in other documents.
+- A minimal PDF 1.4 writer with no dependencies: catalog, one page, and Flate-compressed
+  streams. Output is deterministic (no dates or IDs).
+- Each distinct glyph becomes a Form XObject reused with `Do`, the PDF equivalent of SVG
+  `<use>`. Quadratic TrueType curves are raised to cubics.
+- The page content starts with a single `cm` that maps font units (y down) to points
+  (y up). It's written at full precision; two-decimal rounding broke non-20 pt sizes,
+  and a regression test now covers that.
+- Captions use base-14 Helvetica with WinAnsiEncoding, which is never embedded. Arrow
+  opacity uses an ExtGState.
+- The page is cropped exactly to the diagram plus padding, so it can be included as-is in
+  other documents. Colours are `#rgb`, `#rrggbb`, `white` or `black`.
 
 ### 8.3 TeX snippet (`render/tex.py`), LaTeX route A
 
@@ -415,16 +440,26 @@ from that. The comparison also has a baseline: 100 standalone PDFs included with
 
 ## 11. Testing
 
-- **`tests/vectors.json`** cases have the form `{fen, ok, width, height, cells}` or
-  `{fen, ok: false, error}`, where `error` is a stable error code. Python (pytest), Lua
+- **`tests/vectors.json`** has a `valid` list of
+  `{fen, width, height, canonical, cells}`, where `cells` maps every non-empty square name
+  to `piece:K:white:0:plain`, `special:star:black`, `hole` or `wall`. It also has an
+  `invalid` list of `{fen, error}`, where `error` is a stable code: `empty`, `empty-rank`,
+  `uneven-ranks`, `bad-count`, `too-large`, `bad-char`, `unterminated-token`,
+  `bad-token`, `bad-angle`, `unsupported` or `unknown-special`. Python (pytest), Lua
   (`texlua`) and the web build (vitest) all run the same file.
-- **Catalog tests:** every key resolves, every outline exists, codes match the cmap, and
-  the contact sheet is reviewed by eye once.
-- **Golden SVGs:** a few representative diagrams are rendered and compared byte for byte.
-  These cover a standard position, rotations, neutral and chameleon pieces, specials, an
-  irregular board with holes and walls, double borders, and arrows.
-- **PDF tests:** the output is checked with `qpdf --check` or `pdfinfo`, and rasterised
-  with `pdftoppm` to compare against the SVG rendering.
+- **Catalog tests:** completeness, key format, uniqueness of codes, cell bounds, that
+  `catalog.json` is up to date with the spec and fonts, and that the Lua copy matches. The
+  contact sheet was reviewed by eye in Phase 1.
+- **Layout tests:** border coverage around holes and convex/concave corners, frame
+  merging, sizes, captions and arrows.
+- **Golden SVGs** (`tests/golden/`, cases in `tests/cases.py`) are compared byte for byte:
+  a standard position with caption and count, fairy pieces with a double border and
+  arrows, holes and walls with a frame, an outline-style irregular board, and a 12×11
+  board at 12 pt. To regenerate them, run `GCDIAGRAM_REGEN=1 uv run pytest tests/test_svg.py`.
+- **PDF tests:** xref offsets, determinism, no embedded fonts, and `pdfinfo` page size.
+  Each case is also rasterised with `pdftoppm` and compared (RMSE after downsampling)
+  against an Inkscape raster of the SVG. Tests that need these tools are skipped when
+  they're missing.
 - **LaTeX:** example documents compile in CI with `lualatex`.
 
 ---
@@ -433,8 +468,8 @@ from that. The comparison also has a baseline: 100 standalone PDFs included with
 
 1. **Catalog** (done): write `catalog_spec.py`, build `catalog.json` and `.lua`, produce
    the contact sheet, confirm the code ordering, and add catalog tests.
-2. **Python core:** `fen.py`, `board.py`, `geometry.py`, SVG and PDF renderers, the CLI,
-   the shared vectors and pytest.
+2. **Python core** (done): `fen.py`, `board.py`, `geometry.py`, SVG and PDF renderers,
+   the CLI, the shared vectors and pytest.
 3. **LaTeX:** route A (snippets and `gcsnippet.sty`), route B (LuaLaTeX package), and the
    100-diagram comparison. Then decide whether to keep one route or both.
 4. **Browser editor:** TypeScript parser port, renderer, editing tools and SVG export.
