@@ -54,6 +54,17 @@ async function clickSquare(page: Page, square: string, button: "left" | "right" 
   await page.mouse.click(x, y, { button });
 }
 
+/** The FEN token of the chosen figure: place it on h8 of an empty board, read it, clear it. */
+async function selected(page: Page): Promise<string> {
+  await setFen(page, EMPTY8);
+  await clickSquare(page, "h8");
+  await expect(fen(page)).not.toHaveValue(EMPTY8);
+  const token = ((await fen(page).inputValue()).split("/")[0] ?? "").slice(1);
+  await clickSquare(page, "h8", "right");
+  await expect(fen(page)).toHaveValue(EMPTY8);
+  return token;
+}
+
 async function dragSquares(page: Page, from: string, to: string): Promise<void> {
   const a = await center(page, from);
   const b = await center(page, to);
@@ -141,7 +152,7 @@ test("places, toggles and clears pieces", async ({ page }) => {
   await choose(page, "color", "black");
   await page.locator('[data-testid="piece-R"]').click();
   await choose(page, "angle", "90");
-  await expect(page.getByTestId("selection")).toHaveText("Selected: {r90}");
+  expect(await selected(page)).toBe("{r90}");
   await clickSquare(page, "e4");
   await expect(fen(page)).toHaveValue("8/8/8/8/4{r90}3/8/8/8");
   await clickSquare(page, "e4"); // same figure again: toggles it off
@@ -157,6 +168,7 @@ test("only offers figures the fonts contain", async ({ page }) => {
   await choose(page, "variant", "chameleon");
   await expect(page.locator("#pieces button:disabled")).toHaveCount(6);
   await expect(page.getByTestId("selection")).toHaveText("Not available in the GC fonts");
+  await expect(page.getByTestId("selection")).toBeVisible();
   await choose(page, "variant", "plain");
   await expect(page.locator('input[name="angle"][value="45"]')).toBeDisabled();
   await expect(page.locator('input[name="angle"][value="90"]')).toBeEnabled();
@@ -164,7 +176,7 @@ test("only offers figures the fonts contain", async ({ page }) => {
   await expect(page.locator('[data-testid="special-equihopper"]')).toBeEnabled();
   await choose(page, "color", "white");
   await page.locator('[data-testid="special-star"]').click();
-  await expect(page.getByTestId("selection")).toHaveText("Selected: {@Star}");
+  expect(await selected(page)).toBe("{@Star}");
 });
 
 test("Mirrored offers the knight at the angles the fonts have", async ({ page }) => {
@@ -172,28 +184,28 @@ test("Mirrored offers the knight at the angles the fonts have", async ({ page })
   await setFen(page, EMPTY8);
   await choose(page, "color", "black");
   await choose(page, "variant", "mirror"); // the queen has no mirrored glyphs: move to the knight
-  await expect(page.getByTestId("selection")).toHaveText("Selected: {!n90}");
+  expect(await selected(page)).toBe("{!n90}");
   await expect(page.locator("#pieces button:enabled")).toHaveCount(1);
   await expect(page.locator('[data-testid="piece-N"]')).toHaveAttribute("aria-pressed", "true");
   for (const a of ["0", "45", "135", "225", "315"]) {
     await expect(page.locator(`input[name="angle"][value="${a}"]`)).toBeDisabled();
   }
   await choose(page, "angle", "270");
-  await expect(page.getByTestId("selection")).toHaveText("Selected: {!n270}");
+  expect(await selected(page)).toBe("{!n270}");
   await clickSquare(page, "e4");
   await expect(fen(page)).toHaveValue("8/8/8/8/4{!n270}3/8/8/8");
   // Back to plain: the knight and its angle carry over.
   await choose(page, "variant", "plain");
-  await expect(page.getByTestId("selection")).toHaveText("Selected: {n270}");
+  expect(await selected(page)).toBe("{n270}");
   // An angle the variant lacks snaps to the nearest one: 45 to 90, and 135 (as near 90
   // as 180) clockwise to 180.
   await choose(page, "angle", "45");
   await choose(page, "variant", "mirror");
-  await expect(page.getByTestId("selection")).toHaveText("Selected: {!n90}");
+  expect(await selected(page)).toBe("{!n90}");
   await choose(page, "variant", "plain");
   await choose(page, "angle", "135");
   await choose(page, "variant", "mirror");
-  await expect(page.getByTestId("selection")).toHaveText("Selected: {!n180}");
+  expect(await selected(page)).toBe("{!n180}");
 });
 
 test("rotates with R, moves by dragging, deletes with Delete", async ({ page }) => {

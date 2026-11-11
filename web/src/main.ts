@@ -531,8 +531,10 @@ async function updatePalette(): Promise<void> {
     const tokens = info.specials[name] ?? {};
     b.innerHTML = await icon(token ?? tokens.white ?? tokens.neutral ?? tokens.black ?? "");
   }
-  const token = selectedToken();
-  $("selection").textContent = token ? `Selected: ${token}` : "Not available in the GC fonts";
+  // Only shown when the GC fonts lack the chosen figure.
+  const note = $("selection");
+  note.hidden = selectedToken() !== null;
+  note.textContent = note.hidden ? "" : "Not available in the GC fonts";
 }
 
 // --- Event wiring -----------------------------------------------------------------------
