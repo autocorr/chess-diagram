@@ -1,0 +1,142 @@
+{
+  "description": "Extended-FEN conformance cases shared by the Python, Lua and TypeScript parsers. 'cells' lists every non-empty cell by square name (a1 = bottom-left) as 'piece:<kind>:<color>:<angle>:<variant>', 'special:<name>:<color>', 'hole' or 'wall'. 'canonical' is serialize(parse(fen)). Error cases give the stable error code only.",
+  "valid": [
+    {
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "width": 8, "height": 8,
+      "canonical": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+      "cells": {
+        "a8": "piece:R:black:0:plain", "b8": "piece:N:black:0:plain", "c8": "piece:B:black:0:plain",
+        "d8": "piece:Q:black:0:plain", "e8": "piece:K:black:0:plain", "f8": "piece:B:black:0:plain",
+        "g8": "piece:N:black:0:plain", "h8": "piece:R:black:0:plain",
+        "a7": "piece:P:black:0:plain", "b7": "piece:P:black:0:plain", "c7": "piece:P:black:0:plain",
+        "d7": "piece:P:black:0:plain", "e7": "piece:P:black:0:plain", "f7": "piece:P:black:0:plain",
+        "g7": "piece:P:black:0:plain", "h7": "piece:P:black:0:plain",
+        "a2": "piece:P:white:0:plain", "b2": "piece:P:white:0:plain", "c2": "piece:P:white:0:plain",
+        "d2": "piece:P:white:0:plain", "e2": "piece:P:white:0:plain", "f2": "piece:P:white:0:plain",
+        "g2": "piece:P:white:0:plain", "h2": "piece:P:white:0:plain",
+        "a1": "piece:R:white:0:plain", "b1": "piece:N:white:0:plain", "c1": "piece:B:white:0:plain",
+        "d1": "piece:Q:white:0:plain", "e1": "piece:K:white:0:plain", "f1": "piece:B:white:0:plain",
+        "g1": "piece:N:white:0:plain", "h1": "piece:R:white:0:plain"
+      }
+    },
+    {
+      "fen": "8/8/8/8/8/8/8/8",
+      "width": 8, "height": 8, "canonical": "8/8/8/8/8/8/8/8", "cells": {}
+    },
+    {
+      "fen": "  4k3/8/8/8/8/8/8/4K3   b - -",
+      "width": 8, "height": 8, "canonical": "4k3/8/8/8/8/8/8/4K3",
+      "cells": {"e8": "piece:K:black:0:plain", "e1": "piece:K:white:0:plain"}
+    },
+    {
+      "fen": "{Q90}{q135}{R180}{r225}{B270}{b315}{N45}{p0}",
+      "width": 8, "height": 1, "canonical": "{Q90}{q135}{R180}{r225}{B270}{b315}{N45}p",
+      "cells": {
+        "a1": "piece:Q:white:90:plain", "b1": "piece:Q:black:135:plain",
+        "c1": "piece:R:white:180:plain", "d1": "piece:R:black:225:plain",
+        "e1": "piece:B:white:270:plain", "f1": "piece:B:black:315:plain",
+        "g1": "piece:N:white:45:plain", "h1": "piece:P:black:0:plain"
+      }
+    },
+    {
+      "fen": "{=Q}{=q90}{=K180}{=n270}/{~K}{~q}{!N90}{!n270}",
+      "width": 4, "height": 2, "canonical": "{=Q}{=Q90}{=K180}{=N270}/{~K}{~q}{!N90}{!n270}",
+      "cells": {
+        "a2": "piece:Q:neutral:0:plain", "b2": "piece:Q:neutral:90:plain",
+        "c2": "piece:K:neutral:180:plain", "d2": "piece:N:neutral:270:plain",
+        "a1": "piece:K:white:0:chameleon", "b1": "piece:Q:black:0:chameleon",
+        "c1": "piece:N:white:90:mirror", "d1": "piece:N:black:270:mirror"
+      }
+    },
+    {
+      "fen": "{@Star}{@star}{=@hourglass}{@box}{@Box}{@half-circle}{=@half-circle}{@Cross}",
+      "width": 8, "height": 1,
+      "canonical": "{@Star}{@star}{=@hourglass}{@box}{@box}{@half-circle}{@half-circle}{@cross}",
+      "cells": {
+        "a1": "special:star:white", "b1": "special:star:black", "c1": "special:hourglass:neutral",
+        "d1": "special:box:none", "e1": "special:box:none", "f1": "special:half-circle:neutral",
+        "g1": "special:half-circle:neutral", "h1": "special:cross:none"
+      }
+    },
+    {
+      "fen": "rnbqkbnr/pppp.ppp/8/3*4/8/8/PPPPPPPP/RNBQKBNR",
+      "width": 8, "height": 8, "canonical": "rnbqkbnr/pppp.ppp/8/3*4/8/8/PPPPPPPP/RNBQKBNR",
+      "cells": {
+        "a8": "piece:R:black:0:plain", "b8": "piece:N:black:0:plain", "c8": "piece:B:black:0:plain",
+        "d8": "piece:Q:black:0:plain", "e8": "piece:K:black:0:plain", "f8": "piece:B:black:0:plain",
+        "g8": "piece:N:black:0:plain", "h8": "piece:R:black:0:plain",
+        "a7": "piece:P:black:0:plain", "b7": "piece:P:black:0:plain", "c7": "piece:P:black:0:plain",
+        "d7": "piece:P:black:0:plain", "e7": "hole", "f7": "piece:P:black:0:plain",
+        "g7": "piece:P:black:0:plain", "h7": "piece:P:black:0:plain",
+        "d5": "wall",
+        "a2": "piece:P:white:0:plain", "b2": "piece:P:white:0:plain", "c2": "piece:P:white:0:plain",
+        "d2": "piece:P:white:0:plain", "e2": "piece:P:white:0:plain", "f2": "piece:P:white:0:plain",
+        "g2": "piece:P:white:0:plain", "h2": "piece:P:white:0:plain",
+        "a1": "piece:R:white:0:plain", "b1": "piece:N:white:0:plain", "c1": "piece:B:white:0:plain",
+        "d1": "piece:Q:white:0:plain", "e1": "piece:K:white:0:plain", "f1": "piece:B:white:0:plain",
+        "g1": "piece:N:white:0:plain", "h1": "piece:R:white:0:plain"
+      }
+    },
+    {
+      "fen": "..2../.4./6/6/.4./..2..",
+      "width": 6, "height": 6, "canonical": "..2../.4./6/6/.4./..2..",
+      "cells": {
+        "a6": "hole", "b6": "hole", "e6": "hole", "f6": "hole",
+        "a5": "hole", "f5": "hole", "a2": "hole", "f2": "hole",
+        "a1": "hole", "b1": "hole", "e1": "hole", "f1": "hole"
+      }
+    },
+    {
+      "fen": "9k2/12/12/2K9",
+      "width": 12, "height": 4, "canonical": "9k2/12/12/2K9",
+      "cells": {"j4": "piece:K:black:0:plain", "c1": "piece:K:white:0:plain"}
+    },
+    {
+      "fen": "1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/{@Ring}",
+      "width": 1, "height": 26,
+      "canonical": "1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/{@Ring}",
+      "cells": {"a1": "special:ring:white"}
+    },
+    {
+      "fen": "K",
+      "width": 1, "height": 1, "canonical": "K", "cells": {"a1": "piece:K:white:0:plain"}
+    },
+    {
+      "fen": "1*1/.{@diamond}./1*1",
+      "width": 3, "height": 3, "canonical": "1*1/.{@diamond}./1*1",
+      "cells": {"b3": "wall", "a2": "hole", "b2": "special:diamond:black", "c2": "hole", "b1": "wall"}
+    }
+  ],
+  "invalid": [
+    {"fen": "", "error": "empty"},
+    {"fen": "   ", "error": "empty"},
+    {"fen": "8//8", "error": "empty-rank"},
+    {"fen": "8/8/", "error": "empty-rank"},
+    {"fen": "/8", "error": "empty-rank"},
+    {"fen": "8/7", "error": "uneven-ranks"},
+    {"fen": "8/9", "error": "uneven-ranks"},
+    {"fen": "08/8", "error": "bad-count"},
+    {"fen": "27", "error": "too-large"},
+    {"fen": "20K6", "error": "too-large"},
+    {"fen": "1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1/1", "error": "too-large"},
+    {"fen": "8/8/8/8/8/8/8/7X", "error": "bad-char"},
+    {"fen": "{Q", "error": "unterminated-token"},
+    {"fen": "{}", "error": "bad-token"},
+    {"fen": "{X90}", "error": "bad-token"},
+    {"fen": "{~@star}", "error": "bad-token"},
+    {"fen": "{!@star}", "error": "bad-token"},
+    {"fen": "{Q30}", "error": "bad-angle"},
+    {"fen": "{Q360}", "error": "bad-angle"},
+    {"fen": "{Q-90}", "error": "bad-angle"},
+    {"fen": "{Q9x}", "error": "bad-angle"},
+    {"fen": "{=Q45}", "error": "unsupported"},
+    {"fen": "{~Q90}", "error": "unsupported"},
+    {"fen": "{!N}", "error": "unsupported"},
+    {"fen": "{!Q90}", "error": "unsupported"},
+    {"fen": "{=@star}", "error": "unsupported"},
+    {"fen": "{=@box}", "error": "unsupported"},
+    {"fen": "{@}", "error": "unknown-special"},
+    {"fen": "{@nope}", "error": "unknown-special"}
+  ]
+}

@@ -9,8 +9,9 @@ import json
 from dataclasses import dataclass
 from functools import cache
 from importlib import resources
+from typing import cast
 
-from .board import Figure, Piece, Shade, Special
+from .board import Figure, Piece, Shade, Special, SpecialColor
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,11 +40,11 @@ class Catalog:
             )
             for key, g in data["glyphs"].items()
         }
-        self.specials: dict[str, set[str]] = {}
+        self.specials: dict[str, set[SpecialColor]] = {}
         for key in self.glyphs:
             if key.startswith("special:"):
                 _, name, color, _ = key.split(":")
-                self.specials.setdefault(name, set()).add(color)
+                self.specials.setdefault(name, set()).add(cast(SpecialColor, color))
 
     def __getitem__(self, key: str) -> Glyph:
         return self.glyphs[key]
