@@ -8,6 +8,8 @@
 %   \gcsquaresize{<dim>}  size of one square (default 20pt)
 %   \gccaptionfont        font switch for captions (default \small)
 %   \gccountgap           space kept between the caption and the piece count (default 1em)
+%   \gclabelfont          font switch for label annotations (default \sffamily\bfseries;
+%                         the PDF and SVG output use Helvetica-Bold)
 %
 % Coordinates in \gcbox bodies are numbers of squares, measured from the bottom-left
 % corner of the diagram with y pointing up.
@@ -20,6 +22,13 @@
 \fi
 \RequirePackage{fontspec}
 \RequirePackage{pgf}
+% White outlines behind labels: LuaTeX strokes the text itself (pdfrender), which
+% XeTeX can't; there, contour draws white copies of the text around it.
+\ifluatex
+  \RequirePackage{pdfrender}
+\else
+  \RequirePackage{contour}
+\fi
 
 \newdimen\gcsquare
 \gcsquare=20pt
@@ -105,6 +114,32 @@
     \definecolor{gc@mark}{HTML}{#1}%
     \pgfsetfillcolor{gc@mark}%
     #3\pgfusepath{fill}%
+  \end{pgfscope}}
+
+% Label annotations: one character in a corner of a square.
+% \gclabel{RRGGBB}{halo}{font size}{x}{y}{left|right}{character code}
+% The character's advance box starts (left) or ends (right) at x, on the baseline y.
+% A halo above zero gives it a white outline that wide (in squares), as for \gcmark.
+\newcommand\gclabelfont{\sffamily\bfseries}
+\newdimen\gc@halo
+\ifluatex
+  \def\gc@outline#1{%
+    \rlap{\textpdfrender{TextRenderingMode=Stroke,LineWidth=\the\gc@halo,
+      StrokeColor=white,LineJoinStyle=Round}{#1}}}
+\else
+  \def\gc@outline#1{%
+    \gc@halo=.5\gc@halo
+    \contourlength{\gc@halo}%
+    \rlap{\color{white}\contour{white}{#1}}}
+\fi
+\def\gclabel#1#2#3#4#5#6#7{%
+  \begin{pgfscope}%
+    \definecolor{gc@label}{HTML}{#1}%
+    \pgftext[#6,base,at={\pgfqpoint{#4\gcsquare}{#5\gcsquare}}]{%
+      \fontsize{#3\gcsquare}{#3\gcsquare}\gclabelfont
+      \gc@halo=#2\gcsquare
+      \ifdim\gc@halo>\z@\gc@outline{\char#7\relax}\fi
+      \textcolor{gc@label}{\char#7\relax}}%
   \end{pgfscope}}
 
 % \gcbox[caption above]{width}{height}{body}{caption lines separated by \\}{piece count}

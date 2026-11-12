@@ -340,6 +340,14 @@ is 2000, y points down) and is scaled at output time. A `Layout` contains:
   (labeled "Orange" in the editor), blue `#0072B2` and bluish green `#009E73`, which
   color-blind readers can still tell apart. The text form is
   `kind:square[:color]` or `arrow:from-to[:color]`, and black is left out.
+- **`labels`:** label annotations, `label:square:corner:symbol[:color]` with corner
+  `tl`, `tr`, `bl` or `br`. The symbol is one printable ASCII character, which every
+  output can set and whose Helvetica-Bold width `textmetrics.py` knows; it may be `:`,
+  since it is always exactly one character. Each label is one character in
+  Helvetica-Bold with capitals 30% of a square high (`LABEL_CAP`), 8% of a square
+  (`LABEL_INSET`) in from both edges of its corner: a top corner has the capitals'
+  top at the inset, a bottom corner the baseline. Horizontally the advance box starts or
+  ends at the inset. They get the same white halo as marks and are drawn after them.
 - **`texts`:** lines of styled runs. `caption_above` lines go above the board and
   `caption` lines under it, all left-aligned, plus the optional piece count
   right-aligned on the first line below. Captions wrap at spaces to the diagram's
@@ -384,7 +392,9 @@ lines, so they can't depend on stroke-join settings.
   editor.
 - Captions use `font-family="Helvetica,Arial,sans-serif"`. A line with bold or italic
   runs puts each in a `<tspan>`, and `xml:space="preserve"` keeps the spaces between them.
-- Each annotation is a `<path>`, preceded by the same path stroked in white.
+- Each annotation is a `<path>`, preceded by the same path stroked in white. Labels are
+  `<text>` elements in one bold Helvetica group, each preceded by a white-stroked copy
+  (rather than `paint-order`, which older tools ignore).
 - Size: a full starting position is about 26 KB. Most of that is the dark-square hatching,
   which the font repeats inside every piece-on-dark glyph.
 
@@ -401,6 +411,9 @@ lines, so they can't depend on stroke-join settings.
   Helvetica-Bold, -Oblique and -BoldOblique for styled runs (only the styles used get
   a font resource). A styled line is one `BT … ET` that switches fonts with `Tf`. Arrow
   opacity uses an ExtGState.
+- Labels use Helvetica-Bold too: each is shown twice, first in text rendering mode 1
+  (stroke only) in white at the halo width, then filled. Right-corner labels are
+  placed by their Helvetica-Bold advance width.
 - The page is cropped exactly to the diagram plus padding, so it can be included as-is in
   other documents. Colors are `#rgb`, `#rrggbb`, `white` or `black`.
 
@@ -417,12 +430,20 @@ in `latex/gcsnippet.sty`:
 \gcrects{\gcr{1.05}{3.05}{.05}{1}\gcr{0}{6.05}{6.1}{.05}…}%  borders and wall outlines
 \gcarrows{000000}{0.6}{\gcm{x}{y}\gcl{x}{y}…\gcz}%  arrows (color, opacity, polygons)
 \gcmark{D55E00}{0}{\gcm{x}{y}\gcq{cx}{cy}{x}{y}…\gcz}%  one annotation (color, halo, path)
+\gclabel{0072B2}{.06}{.41783}{4.97}{3.67}{right}{65}%  a label (color, halo, font size, x, y, side, code)
 }{\#2}{(3+2)}%                                       caption lines (\\-separated), count
 ```
 
 With a caption above the board, the call starts `\gcbox[{lines}]{…}`. Caption markup
 becomes `\textbf` and `\textit`. A `\gcmark` halo above zero strokes the path in white
 at that width (in squares) before filling it.
+
+A `\gclabel` sets its character by code (`\char`), so no TeX special character or
+ligature can affect it, in `\gclabelfont` (`\sffamily\bfseries` by default; set it to
+TeX Gyre Heros or Helvetica to match the PDF). Its white outline depends on the engine:
+LuaLaTeX strokes the text itself with `pdfrender` (text rendering mode 1), but XeTeX
+ignores that, so XeLaTeX uses `contour`, which draws white copies of the text around
+it.
 
 - **Glyphs as text:** every glyph code is a digit, an ASCII letter or a Latin-1 symbol,
   none of which are special to TeX, so a rank is plain UTF-8 text in the right font.
@@ -461,7 +482,7 @@ at that width (in squares) before filling it.
 - **Keys** (`l3keys`, per diagram or in `\gcdiagramsetup`): `size`, `border`, `wall`,
   `caption` and `caption above` (LaTeX text, with `\\` between lines), `count`,
   `arrows`, `arrow color` (`RRGGBB`) and `arrow opacity`. Annotations (circles,
-  crosses and so on) are not ported to Lua yet; route A snippets can carry them.
+  crosses, labels and so on) are not ported to Lua yet; route A snippets can carry them.
 - **Parsing:** the FEN reaches Lua as a string through `\detokenize`/`\lua_escape:e`.
   `gcdiagram.lua` ports `fen.py`, the layout from `geometry.py` (frame, hole borders
   with merging, arrows) and the emitter from `render/tex.py`. It returns
@@ -531,7 +552,9 @@ as the CLI writes them.
 - **Python side** (`gcdiagram/editor.py`, tested by `tests/test_editor.py`): plain-data
   functions. The board state is a canonical FEN string and the options are a dict of
   `RenderOptions` fields. `render` returns the canonical FEN, an SVG annotated with
-  `data-square`, the board origin and size for pointer mapping, and each cell's token.
+  `data-square`, the board origin and size for pointer mapping, each cell's token, and
+  the annotations parsed (with their canonical text forms), so the UI never parses the
+  annotation grammar itself.
   The edit functions (`set_cell`, `move`, `rotate`, `recolor`, `resize`) take a FEN and
   return a new one, so every edit is checked by the real parser. `rotate` steps to the
   next angle the fonts support for that piece, and `recolor` to the next color (white,
@@ -548,8 +571,13 @@ as the CLI writes them.
     90°, 180° and 270°.
   - Tools: place (clicking the same figure again removes it), erase, hole, wall and
     annotate. Annotate draws an arrow on a drag, and on a click the circle, cross,
-    square, triangle or dot chosen in the Annotation section, in its chosen color. Doing
-    it again removes it, or recolors it if another color is chosen. Choosing a
+    square, triangle, dot or label chosen in the Annotation section, in its chosen color. Doing
+    it again removes it, or recolors it if another color is chosen. A label goes in the
+    corner of the square nearest the click, with the symbol from the Symbol field, and
+    a faint preview follows the mouse. The field only keeps characters that labels
+    allow. `info()` sends that set, and where each corner's label goes, taken from
+    `annotation_label`, so the preview can't drift from the export. Another
+    symbol or color in an occupied corner replaces that label. Choosing a
     shape or color selects the tool. Old links with `arrow=e2-e4` load as black arrow
     annotations.
   - Drag to move. Right-click or <kbd>Del</kbd> clears; <kbd>R</kbd> and

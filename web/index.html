@@ -44,6 +44,9 @@
           circle, cross, square, triangle or dot chosen under <b>Annotation</b>, in the chosen color. Doing
           the same again removes it; with another color selected, it changes color instead. Click an
           annotation in the list under <b>Annotation</b> to remove just that one.</li>
+        <li><b>Label</b>: type a letter, digit or ASCII symbol under <b>Annotation</b>, then click near a
+          corner of a square to put it in that corner. Each corner holds one label; clicking with
+          another symbol or color replaces it.</li>
         <li>Drag a figure to move it. Right-click a square to empty it.</li>
         <li>With the pointer over a square: <kbd>R</kbd> rotates the figure 45° clockwise,
           <kbd>Shift</kbd>+<kbd>R</kbd> counterclockwise, <kbd>Del</kbd> empties the square.</li>
@@ -142,7 +145,12 @@
             <label><input type="radio" name="mark-kind" value="square" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Square</label>
             <label><input type="radio" name="mark-kind" value="triangle" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5 13.5 12.5h-11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Triangle</label>
             <label><input type="radio" name="mark-kind" value="dot" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.5" fill="currentColor"/></svg>Dot</label>
+            <label><input type="radio" name="mark-kind" value="label" /><svg class="shape" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2 2h4v4H2zm8 0h4v4h-4zM2 10h4v4H2zm8 0h4v4h-4z" fill="currentColor"/></svg>Label</label>
           </div>
+          <label id="label-symbol-row" class="inline" hidden>Symbol
+            <input id="label-symbol" data-testid="label-symbol" type="text" class="symbol" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="label-symbol-hint" />
+            <span id="label-symbol-hint" class="muted">click near a corner</span>
+          </label>
           <div class="segmented" aria-label="Color">
             <label><input type="radio" name="mark-color" value="black" checked /><span class="swatch" data-color="black"></span>Black</label>
             <label><input type="radio" name="mark-color" value="gray" /><span class="swatch" data-color="gray"></span>Gray</label>

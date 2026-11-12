@@ -11,6 +11,7 @@ from dataclasses import fields
 from typing import Any, get_args
 
 from . import svgpath
+from .annotations import CORNERS, FILL, LABEL_CHARS, Annotation, parse_annotation
 from .board import (
     ANGLES,
     EMPTY,
@@ -30,10 +31,10 @@ from .board import (
 )
 from .catalog import load_catalog
 from .fen import FenError, figure_token, parse, serialize
-from .geometry import layout
+from .geometry import HALO, LABEL_SIZE, annotation_label, layout
 from .options import RenderOptions
 from .render.pdf import render_pdf
-from .render.svg import render_svg
+from .render.svg import FONT_FAMILY, render_svg
 from .render.tex import render_tex
 
 _OPTION_FIELDS = {f.name for f in fields(RenderOptions)}
@@ -54,7 +55,9 @@ def options_from(data: dict[str, Any] | None) -> RenderOptions:
 def info() -> dict[str, Any]:
     """Everything the palette needs: supported pieces, and for each special the token
     to place for each palette color that has one (single-version specials, such as
-    box, use the same token for every color)."""
+    box, use the same token for every color). Also the characters labels allow, and
+    how they are drawn, so the editor can preview one exactly where it will go: each
+    corner's anchor and baseline position relative to its square's top-left corner."""
     cat = load_catalog()
     pieces = []
     for kind in KINDS:
@@ -73,7 +76,20 @@ def info() -> dict[str, Any]:
                             }
                         )
     specials = {name: _special_tokens(name, cs) for name, cs in sorted(cat.specials.items())}
-    return {"pieces": pieces, "specials": specials}
+    a1 = parse("1")  # one square, at the origin
+    corners = {}
+    for corner in CORNERS:
+        lab = annotation_label(a1, f"label:a1:{corner}:A", 0, 0)
+        corners[corner] = {"x": lab.x, "y": lab.y, "anchor": lab.anchor}
+    label = {
+        "chars": LABEL_CHARS,
+        "font": FONT_FAMILY,
+        "size": LABEL_SIZE,
+        "halo": HALO,
+        "fills": FILL,
+        "corners": corners,
+    }
+    return {"pieces": pieces, "specials": specials, "label": label}
 
 
 def _special_tokens(name: str, colors: set[SpecialColor]) -> dict[str, str]:
@@ -106,6 +122,20 @@ def render(fen: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         "files": board.width,
         "ranks": board.height,
         "cells": [[_describe(cell) for cell in row] for row in board.cells],
+        "annotations": [_annotation(parse_annotation(a)) for a in opts.annotations],
+    }
+
+
+def _annotation(a: Annotation) -> dict[str, str]:
+    """An annotation as the editor lists and toggles it, with its canonical text form.
+    Only labels have a corner and a symbol; the others have "" for both."""
+    return {
+        "spec": str(a),
+        "kind": a.kind,
+        "squares": "-".join(a.squares),
+        "color": a.color,
+        "corner": a.corner or "",
+        "symbol": a.symbol,
     }
 
 

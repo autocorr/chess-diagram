@@ -16,7 +16,7 @@ from dataclasses import replace
 
 from ..board import Board
 from ..catalog import Catalog, Glyph
-from ..geometry import WALL_FILL, Rect, U, layout
+from ..geometry import LABEL_SIZE, WALL_FILL, Rect, U, layout
 from ..markup import parse_markup
 from ..options import RenderOptions
 from ..svgpath import Segment, fmt
@@ -126,6 +126,13 @@ def tex_parts(
     for mark in lay.marks:
         path = _tex_path(mark.path, height)
         lines.append(rf"\gcmark{{{_hex(mark.fill)}}}{{{num(mark.halo)}}}{{{path}}}%")
+    for label in lay.labels:
+        # The character goes by its code, which no TeX special or ligature can touch.
+        side = "left" if label.anchor == "start" else "right"
+        lines.append(
+            rf"\gclabel{{{_hex(label.fill)}}}{{{num(label.halo)}}}{{{num(LABEL_SIZE)}}}"
+            rf"{{{num(label.x)}}}{{{num(height - label.y)}}}{{{side}}}{{{ord(label.text)}}}%"
+        )
 
     count = board.piece_count_label() if opts.piece_count else ""
     return num(lay.width), num(height), "\n".join(lines), count

@@ -1,7 +1,7 @@
 // Editor UI. All chess and diagram logic runs in Python (gcdiagram.editor via Pyodide);
 // this file only handles the DOM, pointer and keyboard input, and the URL hash.
 
-import { type Failure, type Info, type Options, Python, type Rendered, failed } from "./python";
+import { type Annotation, type Failure, type Info, type Options, Python, type Rendered, failed } from "./python";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 const U = 2000; // font units per square in the rendered SVG
@@ -12,6 +12,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const LONG_PRESS_MS = 450;
 // Annotation colors shown under another name than their key (gcdiagram/annotations.py).
 const COLOR_LABELS: Record<string, string> = { vermilion: "orange" };
+const CORNER_NAMES: Record<string, string> = { tl: "top left", tr: "top right", bl: "bottom left", br: "bottom right" };
 
 interface DiagramOptions extends Options {
   border: string;
@@ -19,16 +20,12 @@ interface DiagramOptions extends Options {
   caption: string[];
   caption_above: string[];
   piece_count: boolean;
-  annotations: string[]; // "circle:e4", "arrow:e2-e4:blue" (see gcdiagram/annotations.py)
+  annotations: string[]; // "circle:e4", "arrow:e2-e4:blue", "label:e4:tr:A" (gcdiagram/annotations.py)
   square_size: number;
 }
 
-/** An annotation: its kind, square(s) ("e4", or "e2-e4" for an arrow) and color. */
-interface Mark {
-  kind: string;
-  squares: string;
-  color: string;
-}
+/** An annotation to add: as Python parses one, without its text form. */
+type Mark = Omit<Annotation, "spec">;
 
 interface State {
   fen: string;
@@ -44,7 +41,11 @@ const fenError = $<HTMLParagraphElement>("fen-error");
 const statusEl = $<HTMLSpanElement>("status");
 
 const py = new Python();
-let info: Info = { pieces: [], specials: {} };
+let info: Info = {
+  pieces: [],
+  specials: {},
+  label: { chars: "", font: "", size: 0, halo: 0, fills: {}, corners: {} },
+};
 let state = loadHash();
 let view: Rendered | null = null;
 let tool = "place";
@@ -54,8 +55,11 @@ let angle = 0;
 let selection: Selection = { type: "piece", kind: "Q" };
 let markKind = "arrow";
 let markColor = "black";
+let labelSymbol = "A";
 let captionArea: HTMLTextAreaElement | null = null; // the caption the B and I buttons format
 let hover: string | null = null;
+let hoverCorner: string | null = null; // the corner of the hovered square under the pointer
+let labelPreview: { g: SVGGElement; texts: SVGTextElement[]; fill: SVGTextElement } | null = null;
 let pressed: string | null = null;
 let pointerType = "mouse"; // of the last pointerdown on the board
 let longPress: ReturnType<typeof setTimeout> | undefined;
@@ -128,6 +132,7 @@ async function refresh(fen = state.fen): Promise<void> {
   }
   view = result;
   state.fen = result.fen;
+  state.options.annotations = result.annotations.map((a) => a.spec); // canonical forms
   showError("");
   draw();
   syncControls();
@@ -151,11 +156,13 @@ function draw(): void {
   mark.setAttribute("pointer-events", "none");
   mark.setAttribute("visibility", "hidden");
   svg.append(mark);
+  labelPreview = null; // it was in the old board's SVG
   showHover();
   if (menuSquare) openMenu(menuSquare); // re-check and re-place it against the new board
 }
 
 function showHover(): void {
+  showLabelPreview();
   const mark = boardEl.querySelector<SVGRectElement>("#hover");
   if (!mark || !view) return;
   const square = hover ?? menuSquare;
@@ -167,6 +174,47 @@ function showHover(): void {
   mark.setAttribute("x", String(view.boardX + pos[1] * U));
   mark.setAttribute("y", String(view.boardY + pos[0] * U));
   mark.setAttribute("visibility", "visible");
+}
+
+/**
+ * Preview the label a click would place, at the hovered corner, with a mouse only. It is
+ * drawn like an exported label but faint, and is only in the board's SVG while shown.
+ */
+function showLabelPreview(): void {
+  const pos = hover ? position(hover) : null;
+  const corner = hoverCorner ? info.label.corners[hoverCorner] : undefined;
+  const shown = tool === "annotate" && markKind === "label" && pointerType === "mouse" && !menuSquare;
+  if (!view || !pos || !corner || !shown) {
+    labelPreview?.g.remove();
+    labelPreview = null;
+    return;
+  }
+  if (!labelPreview) {
+    const g = document.createElementNS(SVG_NS, "g");
+    g.id = "label-preview";
+    g.setAttribute("font-family", info.label.font);
+    g.setAttribute("font-weight", "bold");
+    g.setAttribute("font-size", String(info.label.size));
+    g.setAttribute("opacity", "0.5");
+    g.setAttribute("pointer-events", "none");
+    const halo = document.createElementNS(SVG_NS, "text");
+    halo.setAttribute("fill", "none");
+    halo.setAttribute("stroke", "#fff");
+    halo.setAttribute("stroke-width", String(info.label.halo));
+    halo.setAttribute("stroke-linejoin", "round");
+    const fill = document.createElementNS(SVG_NS, "text");
+    g.append(halo, fill);
+    boardEl.querySelector("svg")!.append(g);
+    labelPreview = { g, texts: [halo, fill], fill };
+  }
+  labelPreview.g.setAttribute("transform", `translate(${view.boardX + pos[1] * U} ${view.boardY + pos[0] * U})`);
+  labelPreview.fill.setAttribute("fill", info.label.fills[markColor] ?? "#000");
+  for (const text of labelPreview.texts) {
+    text.textContent = labelSymbol;
+    text.setAttribute("x", String(corner.x));
+    text.setAttribute("y", String(corner.y));
+    text.setAttribute("text-anchor", corner.anchor);
+  }
 }
 
 function syncControls(): void {
@@ -192,10 +240,11 @@ function syncControls(): void {
 /** The annotation list: one button per annotation, which removes it. */
 function showAnnotations(): void {
   const list = $<HTMLUListElement>("annotations");
-  const marks = state.options.annotations.map(parseMark);
+  const marks = view?.annotations ?? [];
   list.replaceChildren(
     ...marks.map((m, i) => {
-      const name = `${m.kind} ${m.squares}${m.color === "black" ? "" : ` (${COLOR_LABELS[m.color] ?? m.color})`}`;
+      const where = m.corner ? `label ${m.symbol} ${m.squares} ${CORNER_NAMES[m.corner]}` : `${m.kind} ${m.squares}`;
+      const name = `${where}${m.color === "black" ? "" : ` (${COLOR_LABELS[m.color] ?? m.color})`}`;
       const item = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";
@@ -238,15 +287,21 @@ function position(square: string): [number, number] | null {
   return col < view.files && row >= 0 && row < view.ranks ? [row, col] : null;
 }
 
-function squareAt(event: MouseEvent): string | null {
-  const svg = boardEl.querySelector("svg");
-  const ctm = svg?.getScreenCTM();
+/**
+ * The square under a pointer event, and the corner of it the pointer is nearest
+ * ("tl", "tr", "bl" or "br"), or null off the board.
+ */
+function pointAt(event: MouseEvent): { square: string; corner: string } | null {
+  const ctm = boardEl.querySelector("svg")?.getScreenCTM();
   if (!view || !ctm) return null;
   const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
-  const col = Math.floor((p.x - view.boardX) / U);
-  const row = Math.floor((p.y - view.boardY) / U);
+  const x = (p.x - view.boardX) / U;
+  const y = (p.y - view.boardY) / U;
+  const col = Math.floor(x);
+  const row = Math.floor(y);
   if (col < 0 || col >= view.files || row < 0 || row >= view.ranks) return null;
-  return `${FILES[col]}${view.ranks - row}`;
+  const corner = (y - row < 0.5 ? "t" : "b") + (x - col < 0.5 ? "l" : "r");
+  return { square: `${FILES[col]}${view.ranks - row}`, corner };
 }
 
 function cellAt(square: string): string {
@@ -323,7 +378,7 @@ function edit(square: string, token: string): Promise<void> {
   return enqueue(async () => apply(await py.setCell(state.fen, square, token)));
 }
 
-function click(square: string): void {
+function click(square: string, corner: string): void {
   const current = cellAt(square);
   if (tool === "place") {
     const token = selectedToken();
@@ -338,14 +393,16 @@ function click(square: string): void {
     void edit(square, current === "." ? "" : ".");
   } else if (tool === "wall") {
     void edit(square, current === "*" ? "" : "*");
+  } else if (tool === "annotate" && markKind === "label") {
+    toggleMark({ kind: "label", squares: square, color: markColor, corner, symbol: labelSymbol });
   } else if (tool === "annotate" && markKind !== "arrow") {
-    toggleMark(markKind, square);
+    toggleMark({ kind: markKind, squares: square, color: markColor, corner: "", symbol: "" });
   }
 }
 
 function drag(from: string, to: string): void {
   if (tool === "annotate") {
-    toggleMark("arrow", `${from}-${to}`);
+    toggleMark({ kind: "arrow", squares: `${from}-${to}`, color: markColor, corner: "", symbol: "" });
   } else if (cellAt(from) !== "") {
     void enqueue(async () => apply(await py.move(state.fen, from, to)));
   }
@@ -357,36 +414,51 @@ function rotate(square: string, step: number): void {
 
 // --- Annotations ------------------------------------------------------------------------
 
-function parseMark(spec: string): Mark {
-  const [kind = "", squares = "", color = "black"] = spec.split(":");
-  return { kind, squares, color };
-}
-
+/** The text form of an annotation (gcdiagram/annotations.py); black is left out. */
 function markSpec(m: Mark): string {
-  return `${m.kind}:${m.squares}${m.color === "black" ? "" : `:${m.color}`}`;
+  const color = m.color === "black" ? "" : `:${m.color}`;
+  if (m.kind === "label") return `label:${m.squares}:${m.corner}:${m.symbol}${color}`;
+  return `${m.kind}:${m.squares}${color}`;
 }
 
 /**
- * Add an annotation in the selected color. If the same kind is already on the same
- * square(s), remove it, or recolor it when another color is selected.
+ * Add an annotation. If the same kind is already in the same place (square(s), and
+ * corner for a label), remove it if it is the same, or replace it when the color or
+ * the label's symbol differs. It runs in the queue, so it sees every earlier edit.
  */
-function toggleMark(kind: string, squares: string): void {
-  const marks = state.options.annotations.map(parseMark);
-  const i = marks.findIndex((m) => m.kind === kind && m.squares === squares);
-  if (i < 0) marks.push({ kind, squares, color: markColor });
-  else if (marks[i]!.color === markColor) marks.splice(i, 1);
-  else marks[i] = { kind, squares, color: markColor };
-  state.options.annotations = marks.map(markSpec);
-  void enqueue(refresh);
+function toggleMark(mark: Mark): void {
+  void enqueue(async () => {
+    const specs = (view?.annotations ?? []).map((a) => a.spec);
+    const spec = markSpec(mark);
+    const i = (view?.annotations ?? []).findIndex(
+      (m) => m.kind === mark.kind && m.squares === mark.squares && m.corner === mark.corner,
+    );
+    if (i < 0) specs.push(spec);
+    else if (specs[i] === spec) specs.splice(i, 1);
+    else specs[i] = spec;
+    state.options.annotations = specs;
+    await refresh();
+  });
+}
+
+/**
+ * Keep the label symbol field to one allowed character: the last allowed one typed or
+ * pasted, else the previous symbol. An emptied field keeps the previous symbol too.
+ */
+function setLabelSymbol(input: HTMLInputElement): void {
+  const typed = [...input.value].reverse().find((ch) => info.label.chars.includes(ch));
+  if (typed) labelSymbol = typed;
+  if (input.value !== "" || document.activeElement !== input) input.value = labelSymbol;
+  showLabelPreview();
 }
 
 /** Keep only annotations whose squares exist on a width x height board. */
 function annotationsWithin(width: number, height: number): string[] {
-  return state.options.annotations.filter((spec) =>
-    (parseMark(spec).squares.match(/[a-z]\d+/g) ?? []).every(
-      (sq) => FILES.indexOf(sq[0]!) < width && Number(sq.slice(1)) <= height,
-    ),
-  );
+  return (view?.annotations ?? [])
+    .filter((a) =>
+      (a.squares.match(/[a-z]\d+/g) ?? []).every((sq) => FILES.indexOf(sq[0]!) < width && Number(sq.slice(1)) <= height),
+    )
+    .map((a) => a.spec);
 }
 
 function selectTool(value: string): void {
@@ -556,7 +628,7 @@ function wire(): void {
   boardEl.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
     pointerType = e.pointerType;
-    pressed = squareAt(e);
+    pressed = pointAt(e)?.square ?? null;
     if (!pressed) return;
     boardEl.setPointerCapture(e.pointerId);
     if (e.pointerType !== "mouse") {
@@ -571,26 +643,34 @@ function wire(): void {
     }
   });
   boardEl.addEventListener("pointermove", (e) => {
-    const sq = squareAt(e);
+    pointerType = e.pointerType;
+    const point = pointAt(e);
+    const sq = point?.square ?? null;
+    const corner = point?.corner ?? null;
     if (sq !== hover) {
       hover = sq;
+      hoverCorner = corner;
       if (sq !== pressed) cancelLongPress(); // moved off the square: it's a drag
       showHover();
+    } else if (corner !== hoverCorner) {
+      hoverCorner = corner;
+      showLabelPreview();
     }
   });
   boardEl.addEventListener("pointerleave", () => {
     hover = null;
+    hoverCorner = null;
     showHover();
   });
   boardEl.addEventListener("pointerup", (e) => {
     cancelLongPress();
     if (e.button !== 0 || !pressed) return;
-    const released = squareAt(e);
+    const released = pointAt(e);
     const from = pressed;
     pressed = null;
     if (!released) return;
-    if (released === from) click(from);
-    else drag(from, released);
+    if (released.square === from) click(from, released.corner);
+    else drag(from, released.square);
   });
   boardEl.addEventListener("pointercancel", () => {
     cancelLongPress();
@@ -600,7 +680,7 @@ function wire(): void {
     e.preventDefault();
     // Android reports a long-press as a context menu; touch has its own menu instead.
     if (pointerType !== "mouse") return;
-    const sq = squareAt(e);
+    const sq = pointAt(e)?.square;
     if (sq) void edit(sq, "");
   });
 
@@ -698,7 +778,10 @@ function wire(): void {
   fenInput.addEventListener("change", () => void enqueue(refresh));
   $("copy-fen").addEventListener("click", () => void navigator.clipboard.writeText(state.fen));
 
-  bindRadios("tool", (v) => (tool = v));
+  bindRadios("tool", (v) => {
+    tool = v;
+    showLabelPreview();
+  });
   bindRadios("color", (v) => {
     color = v;
     void updatePalette();
@@ -721,8 +804,10 @@ function wire(): void {
       setStatus("Boards can be 1 to 26 squares in each direction", true);
       return;
     }
-    state.options.annotations = annotationsWithin(width, height);
-    void enqueue(async () => apply(await py.resize(state.fen, width, height)));
+    void enqueue(async () => {
+      state.options.annotations = annotationsWithin(width, height);
+      await apply(await py.resize(state.fen, width, height));
+    });
   };
   $("files").addEventListener("change", resize);
   $("ranks").addEventListener("change", resize);
@@ -770,8 +855,22 @@ function wire(): void {
     button.addEventListener("click", () => format(captionArea ?? $<HTMLTextAreaElement>("caption"), tag));
   }
 
-  bindRadios("mark-kind", (v) => (markKind = v));
-  bindRadios("mark-color", (v) => (markColor = v));
+  bindRadios("mark-kind", (v) => {
+    markKind = v;
+    $("label-symbol-row").hidden = v !== "label";
+  });
+  bindRadios("mark-color", (v) => {
+    markColor = v;
+    showLabelPreview();
+  });
+  const symbolInput = $<HTMLInputElement>("label-symbol");
+  symbolInput.value = labelSymbol;
+  symbolInput.addEventListener("input", () => setLabelSymbol(symbolInput));
+  symbolInput.addEventListener("blur", () => setLabelSymbol(symbolInput));
+  symbolInput.addEventListener("focus", () => symbolInput.select());
+  symbolInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") symbolInput.blur();
+  });
   // Choosing a shape or color, even the one already chosen, switches to the Annotate tool.
   $("annotation").addEventListener("click", (e) => {
     if ((e.target as HTMLElement).matches('input[name^="mark-"]')) selectTool("annotate");

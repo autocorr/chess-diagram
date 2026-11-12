@@ -391,6 +391,18 @@ label.inline {
   gap: 0.3rem;
 }
 
+/* The label symbol field: one character, shown at the size it has on the board. */
+#label-symbol-row[hidden] {
+  display: none;
+}
+
+input.symbol {
+  width: 2.4rem;
+  text-align: center;
+  font-weight: 700;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
 label.check {
   flex-direction: row;
   align-items: center;

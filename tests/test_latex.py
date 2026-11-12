@@ -222,10 +222,16 @@ def test_captions_above_markup_and_annotations_compile(tmp_path: Path) -> None:
             "square:a1:gray",
             "triangle:h8",
             "circle:e8:green",
+            "label:e4:tl:A",
+            "label:e4:br:%:blue",
+            "label:h1:tr:\\",
         ],
     )
     route_a = render_tex("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", opts)
-    compile_tex("lualatex", PREAMBLE % "gcsnippet" + route_a + "\n\\end{document}\n", tmp_path, "a")
+    source = PREAMBLE % "gcsnippet" + route_a + "\n\\end{document}\n"
+    compile_tex("lualatex", source, tmp_path, "a")
+    if shutil.which("xelatex"):  # labels are outlined differently there (contour)
+        compile_tex("xelatex", source, tmp_path, "x")
     route_b = r"\gcdiagram[caption above={\textit{J. Smith}}, caption={\#2}, count]{8/8}"
     compile_tex("lualatex", PREAMBLE % "gcdiagram" + route_b + "\n\\end{document}\n", tmp_path, "b")
 

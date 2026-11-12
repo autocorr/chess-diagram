@@ -50,10 +50,11 @@ error.
 - border style: `single`, `double`, `outline` (follows irregular boards) or `none`
 - caption lines above and below the board, with `<b>bold</b>` and `<i>italic</i>`, and
   the `(w+b)` piece count (`-C`/`--caption-above`, `-c`/`--caption`, `-n`)
-- annotations: arrows, circles, crosses, squares, triangles and dots, outlined in white, in
-  black, gray, or Okabe-Ito vermilion, blue and bluish green, e.g. `-m circle:e4` or
-  `-m arrow:e2-e4:vermilion` (`annotations` in `RenderOptions`). The editor labels
-  vermilion "Orange".
+- annotations: arrows, circles, crosses, squares, triangles, dots and corner labels,
+  outlined in white, in black, gray, or Okabe-Ito vermilion, blue and bluish green, e.g.
+  `-m circle:e4`, `-m arrow:e2-e4:vermilion` or `-m label:e4:tr:A:blue` (`annotations`
+  in `RenderOptions`). A label is one printable ASCII character in a corner of a square
+  (`tl`, `tr`, `bl` or `br`). The editor labels vermilion "Orange".
 - translucent arrows such as `e2-e4` (`-a`; the LaTeX route B `arrows` key)
 - wall style: `solid` (40% gray, outlined in black) or `box` (the fonts' framed square)
 - padding and a transparent background
@@ -108,7 +109,8 @@ Click to place the selected figure; clicking it again removes it. Drag to move,
 right-click or <kbd>Del</kbd> to clear, and <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> to
 rotate the piece under the pointer. There are also tools for holes, walls and
 annotations (drag between squares for an arrow, or click for a circle, cross, square,
-triangle or dot, in the color chosen under Annotation). Captions go above and below the
+triangle, dot or label, in the color chosen under Annotation; a label goes in the corner
+nearest the click). Captions go above and below the
 board; select text and press B or I (or Ctrl+B, Ctrl+I) for bold or italic. The
 FEN field and the URL stay in sync with the board, and SVG/PDF/TeX exports are
 identical to the CLI's. The editor can also export a PNG at 150, 300 or 600

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 from cases import CASES
+from helpers import pdf_content
 
 from gcdiagram.fen import parse
 from gcdiagram.options import RenderOptions
@@ -130,10 +131,6 @@ def test_pdf_matches_svg_raster(name: str, tmp_path: Path) -> None:
 
 def test_page_transform_keeps_precision() -> None:
     # Regression: 12pt squares need scale 0.006, which two-decimal rounding turned into 0.01.
-    import zlib
-
     pdf = render_pdf(parse("8/8/8/8/8/8/8/8"), RenderOptions(square_size=12, border="none"))
     assert b"/MediaBox[0 0 96 96]" in pdf
-    streams = re.findall(rb"stream\n(.*?)\nendstream", pdf, re.S)
-    content = zlib.decompress(streams[-1]).decode()
-    assert content.startswith("0.006 0 0 -0.006 0 96 cm")
+    assert pdf_content(pdf).startswith("0.006 0 0 -0.006 0 96 cm")

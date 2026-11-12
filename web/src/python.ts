@@ -13,6 +13,34 @@ export interface Info {
   pieces: PieceInfo[];
   /** special name -> palette color -> FEN token, for the colors the fonts have */
   specials: Record<string, Partial<Record<string, string>>>;
+  /** How label annotations are drawn (gcdiagram/geometry.py), in font units. */
+  label: LabelInfo;
+}
+
+export interface LabelInfo {
+  /** the characters a label can show */
+  chars: string;
+  /** font family (bold) and size */
+  font: string;
+  size: number;
+  /** width of the white outline */
+  halo: number;
+  /** annotation color -> fill */
+  fills: Record<string, string>;
+  /** corner -> where its label goes, from the square's top-left corner */
+  corners: Record<string, { x: number; y: number; anchor: string }>;
+}
+
+/** A parsed annotation (gcdiagram/annotations.py), with its canonical text form. */
+export interface Annotation {
+  spec: string;
+  kind: string;
+  /** "e4", or "e2-e4" for an arrow */
+  squares: string;
+  color: string;
+  /** labels only: "tl", "tr", "bl" or "br", and one character; "" otherwise */
+  corner: string;
+  symbol: string;
 }
 
 export interface Failure {
@@ -30,6 +58,8 @@ export interface Rendered {
   files: number;
   ranks: number;
   cells: string[][];
+  /** state.options.annotations, parsed, in the same order */
+  annotations: Annotation[];
 }
 
 export type Options = Record<string, unknown>;

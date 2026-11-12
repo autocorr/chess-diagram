@@ -7,7 +7,7 @@ from string import ascii_lowercase
 
 from ..board import Board
 from ..catalog import Catalog
-from ..geometry import WALL_FILL, Layout, Rect, Text, U, layout
+from ..geometry import LABEL_SIZE, WALL_FILL, Layout, Rect, Text, U, layout
 from ..options import RenderOptions
 from ..svgpath import fmt, svg_path, to_svg
 from . import prepare
@@ -103,6 +103,24 @@ def _document(
                 'stroke-linejoin="round"/>'
             )
         parts.append(f'<path d="{d}" fill="{mark.fill}"/>')
+
+    if lay.labels:
+        # Like marks, each label is drawn twice: stroked in white, then filled.
+        parts.append(
+            f'<g font-family="{FONT_FAMILY}" font-weight="bold" font-size="{fmt(LABEL_SIZE)}">'
+        )
+        for label in lay.labels:
+            pos = f'x="{fmt(label.x)}" y="{fmt(label.y)}"'
+            if label.anchor == "end":
+                pos += ' text-anchor="end"'
+            text = escape(label.text)
+            if label.halo:
+                parts.append(
+                    f'<text {pos} fill="none" stroke="#fff" stroke-width="{fmt(label.halo)}" '
+                    f'stroke-linejoin="round">{text}</text>'
+                )
+            parts.append(f'<text {pos} fill="{label.fill}">{text}</text>')
+        parts.append("</g>")
 
     if lay.texts:
         size = lay.texts[0].size

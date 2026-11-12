@@ -27,7 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
             "'.' hole, '*' wall. Quote the FEN in the shell. Captions may use "
             "<b>bold</b> and <i>italic</i>. Annotations are KIND:SQUARE[:COLOR] or "
             "arrow:FROM-TO[:COLOR], with KIND one of circle, cross, square, triangle, dot and "
-            "COLOR one of black (default, outlined in white), gray, vermilion, blue, green."
+            "COLOR one of black (default, outlined in white), gray, vermilion, blue, green. "
+            "Labels are label:SQUARE:CORNER:SYMBOL[:COLOR], with CORNER one of tl, tr, bl, br "
+            "and SYMBOL one printable ASCII character, e.g. label:e4:tr:A."
         ),
     )
     p.add_argument("fen", nargs="?", help="extended FEN (only the board field is used)")
@@ -41,7 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-n", "--count", action="store_true", help="add the (white+black) count")
     p.add_argument("-a", "--arrow", action="append", default=[], help="arrow such as e2-e4")
     p.add_argument(
-        "-m", "--mark", action="append", default=[], help="annotation such as circle:e4:blue"
+        "-m",
+        "--mark",
+        action="append",
+        default=[],
+        help="annotation such as circle:e4:blue or label:e4:tr:A",
     )
     p.add_argument("--wall", choices=get_args(WallStyle), default="solid")
     p.add_argument("-s", "--square-size", type=float, default=20.0, help="points per square")

@@ -1,8 +1,9 @@
 """Minimal standalone PDF 1.4 writer: vector outlines, no embedded fonts.
 
 Each distinct glyph becomes a Form XObject drawn with Do. The page content applies one
-transform that maps layout font units (y down) to PDF points (y up). Captions use the
-base-14 Helvetica font, which PDF viewers supply, so nothing is embedded. Output is
+transform that maps layout font units (y down) to PDF points (y up). Captions and
+label annotations use the base-14 Helvetica fonts, which PDF viewers supply, so
+nothing is embedded. Output is
 deterministic (no timestamps or IDs), so identical input gives identical bytes.
 """
 
@@ -13,9 +14,10 @@ import zlib
 
 from ..board import Board
 from ..catalog import Catalog
-from ..geometry import WALL_FILL, Layout, U, layout, line_width
+from ..geometry import LABEL_SIZE, WALL_FILL, Layout, U, layout, line_width
 from ..options import RenderOptions
 from ..svgpath import fmt, pdf_path, to_pdf
+from ..textmetrics import text_width
 from . import prepare
 
 _NAMED = {"white": "#fff", "black": "#000"}
@@ -155,10 +157,13 @@ def _document(lay: Layout, opts: RenderOptions, cat: Catalog) -> bytes:
             ops.append(f"q 1 G {fmt(mark.halo)} w 1 j {path} S Q")
         ops.append(f"q {_rgb(mark.fill, 'rg')} {path} f Q")
 
-    if lay.texts:
-        # One font object per style used, F1 being plain Helvetica.
-        styles = sorted({(r.bold, r.italic) for t in lay.texts for r in t.runs})
-        names = {style: f"F{i}" for i, style in enumerate(styles, start=1)}
+    # One font object per style used by captions and labels (Helvetica-Bold).
+    styles = sorted(
+        {(r.bold, r.italic) for t in lay.texts for r in t.runs}
+        | ({(True, False)} if lay.labels else set())
+    )
+    names = {style: f"F{i}" for i, style in enumerate(styles, start=1)}
+    if styles:
         fonts = "".join(
             f"/{names[style]} "
             + str(
@@ -171,16 +176,29 @@ def _document(lay: Layout, opts: RenderOptions, cat: Catalog) -> bytes:
             for style in styles
         )
         resources.append(f"/Font<<{fonts}>>")
-        for t in lay.texts:
-            width = line_width(t.runs, t.size)
-            x = t.x - {"start": 0, "middle": width / 2, "end": width}[t.anchor]
-            shows = "".join(
-                f"/{names[(r.bold, r.italic)]} {fmt(t.size)} Tf"
-                + (f" 1 0 0 -1 {fmt(x)} {fmt(t.y)} Tm " if i == 0 else "")
-                + f"{_pdf_string(r.text)}Tj"
-                for i, r in enumerate(t.runs)
-            )
-            ops.append(f"BT{shows} ET")
+
+    # Labels: stroked in white (text rendering mode 1), then filled. Text state is part
+    # of the graphics state, so Q restores the default fill mode.
+    for label in lay.labels:
+        x = label.x
+        if label.anchor == "end":
+            x -= text_width(label.text, LABEL_SIZE, bold=True)
+        font = f"BT/{names[(True, False)]} {fmt(LABEL_SIZE)} Tf 1 0 0 -1 {fmt(x)} {fmt(label.y)} Tm"
+        text = f"{_pdf_string(label.text)}Tj ET"
+        if label.halo:
+            ops.append(f"q 1 G {fmt(label.halo)} w 1 j {font} 1 Tr {text} Q")
+        ops.append(f"q {_rgb(label.fill, 'rg')} {font} {text} Q")
+
+    for t in lay.texts:
+        width = line_width(t.runs, t.size)
+        x = t.x - {"start": 0, "middle": width / 2, "end": width}[t.anchor]
+        shows = "".join(
+            f"/{names[(r.bold, r.italic)]} {fmt(t.size)} Tf"
+            + (f" 1 0 0 -1 {fmt(x)} {fmt(t.y)} Tm " if i == 0 else "")
+            + f"{_pdf_string(r.text)}Tj"
+            for i, r in enumerate(t.runs)
+        )
+        ops.append(f"BT{shows} ET")
 
     if xobjects:
         resources.append("/XObject<<" + "".join(xobjects) + ">>")

@@ -32,8 +32,11 @@ async function setFen(page: Page, value: string, canonical = value): Promise<voi
   await idle(page);
 }
 
-/** Viewport coordinates of the center of a square, from the rendered SVG's geometry. */
-async function center(page: Page, square: string, border = "single"): Promise<{ x: number; y: number }> {
+/**
+ * Viewport coordinates of a point in a square, by default its center, from the rendered
+ * SVG's geometry. fx and fy are fractions of the square from its left and top edges.
+ */
+async function center(page: Page, square: string, border = "single", fx = 0.5, fy = 0.5): Promise<{ x: number; y: number }> {
   await idle(page);
   const svg = page.locator("#board svg");
   const box = (await svg.boundingBox())!;
@@ -44,8 +47,8 @@ async function center(page: Page, square: string, border = "single"): Promise<{ 
   const row = ranks - Number(square.slice(1));
   const offset = FRAME[border]!;
   return {
-    x: box.x + (offset + (col + 0.5) * U) * scale,
-    y: box.y + (offset + (row + 0.5) * U) * scale,
+    x: box.x + (offset + (col + fx) * U) * scale,
+    y: box.y + (offset + (row + fy) * U) * scale,
   };
 }
 
@@ -296,6 +299,61 @@ test("annotations and diagram options", async ({ page }) => {
   await page.getByRole("button", { name: "Clear annotations" }).click();
   await expect(annotations).toHaveText("No annotations");
   expect(page.url()).not.toContain("mark=");
+});
+
+/** Viewport coordinates near a corner of a square ("tl", "tr", "bl" or "br"). */
+function nearCorner(page: Page, square: string, corner: string): Promise<{ x: number; y: number }> {
+  return center(page, square, "single", corner[1] === "l" ? 0.2 : 0.8, corner[0] === "t" ? 0.2 : 0.8);
+}
+
+async function clickCorner(page: Page, square: string, corner: string): Promise<void> {
+  const { x, y } = await nearCorner(page, square, corner);
+  await page.mouse.click(x, y);
+}
+
+test("labels go in the corner clicked, with the symbol typed", async ({ page }) => {
+  await open(page, `#fen=${EMPTY8}`);
+  const items = page.getByTestId("annotations").locator(".label");
+  const symbol = page.getByTestId("label-symbol");
+  await expect(symbol).toBeHidden();
+  await page.getByLabel("Shape").getByText("Label", { exact: true }).click();
+  await expect(page.locator('input[name="tool"][value="annotate"]')).toBeChecked();
+  await expect(symbol).toHaveValue("A");
+  // Only printable ASCII is kept: the last allowed character typed, else the old one.
+  await symbol.fill("é");
+  await expect(symbol).toHaveValue("A");
+  await symbol.fill("Bq");
+  await expect(symbol).toHaveValue("q");
+  await symbol.fill("");
+  await symbol.blur();
+  await expect(symbol).toHaveValue("q");
+  await symbol.fill("A");
+  // A faint preview follows the mouse to the corner it is nearest.
+  const preview = page.locator("#label-preview");
+  const at = await nearCorner(page, "e4", "tr");
+  await page.mouse.move(at.x, at.y);
+  await expect(preview).toBeVisible();
+  await expect(preview.locator("text").last()).toHaveAttribute("text-anchor", "end");
+  await expect(preview.locator("text").last()).toHaveText("A");
+  await clickCorner(page, "e4", "tr");
+  await expect(items).toHaveText(["label A e4 top right"]);
+  await symbol.fill(":");
+  await choose(page, "mark-color", "blue");
+  await clickCorner(page, "e4", "bl");
+  await expect(items).toHaveText(["label A e4 top right", "label : e4 bottom left (blue)"]);
+  // White outline, then fill; the mouse is still over the board, so leave out the preview.
+  const labels = page.locator("#board svg text:not(#label-preview text)");
+  await expect(labels).toHaveText(["A", "A", ":", ":"]);
+  await expect(labels.and(page.locator('[fill="#0072B2"]'))).toHaveText(":");
+  expect(page.url()).toContain("mark=label%3Ae4%3Abl%3A%3A%3Ablue");
+  // Another symbol or color replaces the corner's label; the same one removes it.
+  await clickCorner(page, "e4", "tr");
+  await expect(items).toHaveText(["label : e4 top right (blue)", "label : e4 bottom left (blue)"]);
+  await clickCorner(page, "e4", "tr");
+  await expect(items).toHaveText(["label : e4 bottom left (blue)"]);
+  await page.reload();
+  await expect(page.locator("body[data-ready]")).toBeAttached({ timeout: 45_000 });
+  await expect(items).toHaveText(["label : e4 bottom left (blue)"]);
 });
 
 test("old links with arrow= still show their arrows", async ({ page }) => {

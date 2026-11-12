@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
-import zlib
 
 import pytest
+from helpers import pdf_content
 
 from gcdiagram.cli import main
 from gcdiagram.editor import options_from
@@ -99,19 +99,13 @@ def test_svg_uses_tspans_for_styled_runs() -> None:
     assert below.text == "#2" and below.get("{http://www.w3.org/XML/1998/namespace}space") is None
 
 
-def _content(pdf: bytes) -> str:
-    """The page's content stream (the last stream written)."""
-    *_, last = re.findall(rb">>stream\n(.*?)\nendstream", pdf, re.S)
-    return zlib.decompress(last).decode("latin-1")
-
-
 def test_pdf_switches_fonts_within_a_line() -> None:
     pdf = render_pdf("8", RenderOptions(caption=["<b>#2</b> <i>set</i>"]))
     assert b"/BaseFont/Helvetica-Bold/" in pdf and b"/BaseFont/Helvetica-Oblique/" in pdf
     assert b"/BaseFont/Helvetica/" not in pdf  # no plain run, so no plain font
     # Fonts are numbered by style: F1 italic, F2 bold.
     line = r"BT/F2 900 Tf 1 0 0 -1 0 [\d.]+ Tm \(#2 \)Tj/F1 900 Tf\(set\)Tj ET"
-    assert re.search(line, _content(pdf))
+    assert re.search(line, pdf_content(pdf))
 
 
 def test_tex_caption_markup() -> None:

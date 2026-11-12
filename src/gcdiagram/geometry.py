@@ -49,6 +49,12 @@ CROSS_LINE = 160
 DOT_RADIUS = 200  # a solid dot a fifth of a square across
 HALO = 120  # stroke width of the white outline behind every mark (half shows)
 
+# Labels: one Helvetica-Bold character in a corner of a square. Capitals are 30% of a
+# square high and sit 8% of a square in from both edges of their corner.
+LABEL_CAP = 600
+LABEL_SIZE = LABEL_CAP / CAP_HEIGHT  # font size
+LABEL_INSET = 160
+
 Rect = tuple[float, float, float, float]  # x, y, w, h
 Point = tuple[float, float]
 
@@ -83,6 +89,18 @@ class Mark:
     halo: float = 0  # stroke width of a white outline drawn behind it; 0 for none
 
 
+@dataclass(frozen=True)
+class Label:
+    """A label annotation: one character in Helvetica-Bold at LABEL_SIZE."""
+
+    x: float  # the left edge (anchor "start") or right edge (anchor "end") of its advance
+    y: float  # baseline
+    text: str
+    fill: str
+    anchor: Literal["start", "end"]
+    halo: float = 0  # stroke width of a white outline drawn behind it; 0 for none
+
+
 Line = tuple[Run, ...]
 
 
@@ -98,6 +116,7 @@ class Layout:
     wall_fills: list[Rect] = field(default_factory=list)  # WALL_FILL, drawn under rects
     arrows: list[list[Point]] = field(default_factory=list)
     marks: list[Mark] = field(default_factory=list)
+    labels: list[Label] = field(default_factory=list)
     texts: list[Text] = field(default_factory=list)
 
 
@@ -170,7 +189,12 @@ def layout(
     if opts.wall == "solid":
         out.rects.extend(wall_outline_rects(board, opts.border, bx, by))
     out.arrows.extend(arrow_polygon(board, spec, bx, by) for spec in opts.arrows)
-    out.marks.extend(annotation_mark(board, spec, bx, by) for spec in opts.annotations)
+    for spec in opts.annotations:
+        ann = parse_annotation(spec)
+        if ann.kind == "label":
+            out.labels.append(annotation_label(board, ann, bx, by))
+        else:
+            out.marks.append(annotation_mark(board, ann, bx, by))
 
     for i, line in enumerate(above):
         if line:
@@ -425,16 +449,38 @@ def arrow_polygon(board: Board, spec: str | tuple[str, str], bx: float, by: floa
 # --- Annotations --------------------------------------------------------------------------
 
 
-def annotation_mark(board: Board, spec: str | Annotation, bx: float, by: float) -> Mark:
-    ann = parse_annotation(spec)
-    if ann.kind == "arrow":
-        a, b = ann.squares
-        return Mark(_polygon(arrow_polygon(board, (a, b), bx, by)), FILL[ann.color], HALO)
+def _square_origin(board: Board, ann: Annotation, bx: float, by: float) -> Point:
+    """The top-left corner of a one-square annotation's square."""
     (square,) = ann.squares
     r, c = parse_square(square, board.height)
     if c >= board.width:
         raise ValueError(f"annotation {str(ann)!r} is off the board")
-    cx, cy = bx + (c + 0.5) * U, by + (r + 0.5) * U
+    return bx + c * U, by + r * U
+
+
+def annotation_label(board: Board, spec: str | Annotation, bx: float, by: float) -> Label:
+    """A label in its corner: capitals reach LABEL_INSET from the top edge in a top
+    corner, the baseline is LABEL_INSET from the bottom edge in a bottom corner, and
+    the advance box is LABEL_INSET from the side edge."""
+    ann = parse_annotation(spec)
+    if ann.corner is None:  # only labels have a corner
+        raise ValueError(f"not a label: {str(ann)!r}")
+    x0, y0 = _square_origin(board, ann, bx, by)
+    vertical, horizontal = ann.corner
+    y = y0 + LABEL_INSET + LABEL_CAP if vertical == "t" else y0 + U - LABEL_INSET
+    x, anchor = (x0 + LABEL_INSET, "start") if horizontal == "l" else (x0 + U - LABEL_INSET, "end")
+    return Label(x, y, ann.symbol, FILL[ann.color], anchor, HALO)
+
+
+def annotation_mark(board: Board, spec: str | Annotation, bx: float, by: float) -> Mark:
+    ann = parse_annotation(spec)
+    if ann.kind == "label":
+        raise ValueError(f"a label is not a mark: {str(ann)!r}")
+    if ann.kind == "arrow":
+        a, b = ann.squares
+        return Mark(_polygon(arrow_polygon(board, (a, b), bx, by)), FILL[ann.color], HALO)
+    x0, y0 = _square_origin(board, ann, bx, by)
+    cx, cy = x0 + U / 2, y0 + U / 2
     # Rings are an outer edge drawn one way and an inner edge drawn the other, so the
     # nonzero fill rule (the default in SVG, PDF and PGF) leaves the middle empty.
     if ann.kind == "circle":
