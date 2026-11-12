@@ -149,7 +149,7 @@ def _special(name: str, *, neutral: bool, pos: int, catalog: Catalog) -> Special
     if neutral:
         color = "neutral"
     elif colors <= {"none", "neutral"}:
-        # Single-variant specials (box, cross, half-circle) accept either case.
+        # Single-variant specials (box, cross) accept either case.
         (color,) = colors
     else:
         color = "white" if name[0].isupper() else "black"

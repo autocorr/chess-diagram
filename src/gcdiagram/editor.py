@@ -75,7 +75,10 @@ def info() -> dict[str, Any]:
                                 "angle": angle,
                             }
                         )
-    specials = {name: _special_tokens(name, cs) for name, cs in sorted(cat.specials.items())}
+    specials = {
+        name: _special_tokens(name, cat.specials[name])
+        for name in sorted(cat.specials, key=_special_order)
+    }
     a1 = parse("1")  # one square, at the origin
     corners = {}
     for corner in CORNERS:
@@ -90,6 +93,19 @@ def info() -> dict[str, Any]:
         "corners": corners,
     }
     return {"pieces": pieces, "specials": specials, "label": label}
+
+
+# Specials the palette lists first and last, in this order; the rest go alphabetically between.
+_FIRST_SPECIALS = ("circle", "equihopper")
+_LAST_SPECIALS = ("star", "cross", "box")
+
+
+def _special_order(name: str) -> tuple[int, int, str]:
+    if name in _FIRST_SPECIALS:
+        return (0, _FIRST_SPECIALS.index(name), name)
+    if name in _LAST_SPECIALS:
+        return (2, _LAST_SPECIALS.index(name), name)
+    return (1, 0, name)
 
 
 def _special_tokens(name: str, colors: set[SpecialColor]) -> dict[str, str]:

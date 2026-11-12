@@ -171,7 +171,7 @@ SPECIAL_SPLIT = {
 SPECIAL_PAIRED = {
     "box": ("D", "none", [0xE2, 0xE3]),
     "cross": ("D", "none", [0xFC, 0xFD]),
-    "half-circle": ("D", "neutral", [0xFE, 0xFF]),
+    "circle": ("D", "neutral", [0xFE, 0xFF]),
     "equihopper": ("X", "neutral", [0xF5, 0xF6]),
 }
 

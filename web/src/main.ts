@@ -336,7 +336,7 @@ function openMenu(square: string): void {
   }
   menuSquare = square;
   // Holes, walls and special figures have no rotations; holes, walls and single-version
-  // specials (box, cross, half-circle) have no colors.
+  // specials (box, cross) have no colors.
   const figure = cell !== "." && cell !== "*";
   const special = /@([a-z-]+)/i.exec(cell)?.[1]?.toLowerCase();
   const versions = special ? new Set(Object.values(info.specials[special] ?? {})).size : 3;
