@@ -35,7 +35,7 @@ class Piece:
 
 @dataclass(frozen=True, slots=True)
 class Special:
-    """A non-piece figure from the fonts (star, circle, ...), named as in the catalog."""
+    """A non-piece figure from the fonts (star, orphan, ...), named as in the catalog."""
 
     name: str
     color: SpecialColor

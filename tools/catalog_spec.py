@@ -164,14 +164,14 @@ SPECIAL_COLORED = {
 # Pairs where white and black variants are separate glyph pairs rather than a run of four.
 SPECIAL_SPLIT = {
     "ring": ("D", [0xE8, 0xE9], [0xEA, 0xEB]),
-    "circle": ("X", [0xF7, 0xF8], [0xF9, 0xFA]),
+    "orphan": ("X", [0xF7, 0xF8], [0xF9, 0xFA]),
     "star": ("X", [0xFB, 0xFC], [0xFD, 0xFE]),
 }
 
 SPECIAL_PAIRED = {
     "box": ("D", "none", [0xE2, 0xE3]),
     "cross": ("D", "none", [0xFC, 0xFD]),
-    "circle": ("D", "neutral", [0xFE, 0xFF]),
+    "orphan": ("D", "neutral", [0xFE, 0xFF]),
     "equihopper": ("X", "neutral", [0xF5, 0xF6]),
 }
 

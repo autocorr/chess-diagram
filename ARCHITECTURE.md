@@ -23,8 +23,8 @@ There are two scope decisions:
 
 | File | Contents |
 |---|---|
-| `data/GC2004D_.TTF` | Empty squares, single border, pieces at 0/90/180/270°, chameleon (framed) Q R B N P, neutral pieces at 0°, symbols (↔ → ✓), special markers (box, flower, ring, diamond, cross, circle) |
-| `data/GC2004X_.TTF` | Pieces at 45/135/225/315°, neutral pieces at 90/180/270°, special markers (equihopper, circle, star) |
+| `data/GC2004D_.TTF` | Empty squares, single border, pieces at 0/90/180/270°, chameleon (framed) Q R B N P, neutral pieces at 0°, symbols (↔ → ✓), special markers (box, flower, ring, diamond, cross, orphan) |
+| `data/GC2004X_.TTF` | Pieces at 45/135/225/315°, neutral pieces at 90/180/270°, special markers (equihopper, orphan, star) |
 | `data/GC2004Y_.TTF` | Double border and corners, 2- and 3-sided edge squares, arrows, mirrored knights at 90/180/270°, chameleon king, jester figures, rank labels 1–26 and file labels a–z in single and double styles |
 | `data/GC2004Q.pdf` | Quick reference showing the code and image for every glyph |
 
@@ -205,7 +205,7 @@ What the fonts cover (all with light and dark versions):
 | Special | Colors |
 |---|---|
 | `flower`, `diamond`, `ring`, `star`, `jester` | white, black |
-| `circle`, `equihopper` | white, black, neutral |
+| `orphan`, `equihopper` | white, black, neutral |
 | `box`, `cross` | none |
 
 ### 4.3 JSON shape

@@ -50,13 +50,13 @@
       }
     },
     {
-      "fen": "{@Star}{@star}{=@equihopper}{@box}{@Box}{=@circle}{=@circle}{@Cross}",
+      "fen": "{@Star}{@star}{=@equihopper}{@box}{@Box}{=@orphan}{=@orphan}{@Cross}",
       "width": 8, "height": 1,
-      "canonical": "{@Star}{@star}{=@equihopper}{@box}{@box}{=@circle}{=@circle}{@cross}",
+      "canonical": "{@Star}{@star}{=@equihopper}{@box}{@box}{=@orphan}{=@orphan}{@cross}",
       "cells": {
         "a1": "special:star:white", "b1": "special:star:black", "c1": "special:equihopper:neutral",
-        "d1": "special:box:none", "e1": "special:box:none", "f1": "special:circle:neutral",
-        "g1": "special:circle:neutral", "h1": "special:cross:none"
+        "d1": "special:box:none", "e1": "special:box:none", "f1": "special:orphan:neutral",
+        "g1": "special:orphan:neutral", "h1": "special:cross:none"
       }
     },
     {

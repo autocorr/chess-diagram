@@ -96,7 +96,7 @@ def info() -> dict[str, Any]:
 
 
 # Specials the palette lists first and last, in this order; the rest go alphabetically between.
-_FIRST_SPECIALS = ("circle", "equihopper")
+_FIRST_SPECIALS = ("orphan", "equihopper")
 _LAST_SPECIALS = ("star", "cross", "box")
 
 

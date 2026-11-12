@@ -58,7 +58,7 @@ def positions(count: int, seed: int = 2026) -> list[tuple[str, RenderOptions]]:
                         Piece(rng.choice("QRBN"), "neutral", rng.choice([0, 90, 180, 270])),
                         Piece(rng.choice("QRBNP"), rng.choice(["white", "black"]), 0, "chameleon"),
                         Special(
-                            rng.choice(["star", "circle", "flower"]), rng.choice(["white", "black"])
+                            rng.choice(["star", "orphan", "flower"]), rng.choice(["white", "black"])
                         ),
                     ]
                 )
