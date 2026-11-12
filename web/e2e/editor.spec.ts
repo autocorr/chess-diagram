@@ -356,6 +356,45 @@ test("labels go in the corner clicked, with the symbol typed", async ({ page }) 
   await expect(items).toHaveText(["label : e4 bottom left (blue)"]);
 });
 
+test("the title starts over with the start position and default settings", async ({ page }) => {
+  await open(page, "#fen=8/8/8/8/8/8/8/8&border=double&wall=box&above=Smith&caption=%232&count=1&size=30&mark=circle:e4");
+  await page.getByTestId("ranks").fill("6");
+  await page.getByTestId("ranks").blur();
+  await idle(page);
+  await choose(page, "color", "black");
+  await page.getByLabel("Shape").getByText("Label", { exact: true }).click();
+  await page.getByTestId("label-symbol").fill("Z");
+  await choose(page, "mark-color", "blue");
+  await page.getByTestId("png-dpi").selectOption("600");
+  await page.getByTestId("home").click();
+  await idle(page);
+  await expect(fen(page)).toHaveValue(START);
+  await expect(page.getByTestId("annotations")).toHaveText("No annotations");
+  await expect(page.getByTestId("caption")).toHaveValue("");
+  await expect(page.getByTestId("caption-above")).toHaveValue("");
+  await expect(page.getByTestId("count")).not.toBeChecked();
+  await expect(page.getByTestId("border")).toHaveValue("single");
+  await expect(page.getByTestId("wall")).toHaveValue("solid");
+  await expect(page.getByTestId("png-dpi")).toHaveValue("300");
+  await expect(page.locator("#square-size")).toHaveValue("20");
+  for (const [group, value] of [
+    ["tool", "place"],
+    ["color", "white"],
+    ["variant", "plain"],
+    ["angle", "0"],
+    ["mark-kind", "arrow"],
+    ["mark-color", "black"],
+  ]) {
+    await expect(page.locator(`input[name="${group}"][value="${value}"]`)).toBeChecked();
+  }
+  await expect(page.getByTestId("label-symbol")).toBeHidden();
+  await expect(page.getByTestId("label-symbol")).toHaveValue("A");
+  await expect(page.locator("#board svg text")).toHaveCount(0);
+  expect(new URL(page.url()).hash).toBe(`#${new URLSearchParams({ fen: START })}`);
+  // Placing works as on a fresh page: a white queen.
+  expect(await selected(page)).toBe("Q");
+});
+
 test("old links with arrow= still show their arrows", async ({ page }) => {
   await open(page, "#arrow=e2-e4");
   await expect(page.getByTestId("annotations").locator(".label")).toHaveText(["arrow e2-e4"]);

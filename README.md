@@ -111,7 +111,8 @@ rotate the piece under the pointer. There are also tools for holes, walls and
 annotations (drag between squares for an arrow, or click for a circle, cross, square,
 triangle, dot or label, in the color chosen under Annotation; a label goes in the corner
 nearest the click). Captions go above and below the
-board; select text and press B or I (or Ctrl+B, Ctrl+I) for bold or italic. The
+board; select text and press B or I (or Ctrl+B, Ctrl+I) for bold or italic. Clicking
+the title starts over with the start position and default settings. The
 FEN field and the URL stay in sync with the board, and SVG/PDF/TeX exports are
 identical to the CLI's. The editor can also export a PNG at 150, 300 or 600
 dpi, which the browser draws from the SVG; its caption uses the system's

@@ -21,7 +21,7 @@
   </head>
   <body>
     <header>
-      <h1>Chess Diagram Editor</h1>
+      <h1><a id="home" data-testid="home" href="./" title="Start over: the start position and default settings">Chess Diagram Editor</a></h1>
       <span id="status" data-testid="status" role="status">Loading Python…</span>
       <button id="theme-toggle" data-testid="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Dark mode">
         <span class="switch" aria-hidden="true"></span><span class="switch-label">Dark mode</span>
@@ -48,6 +48,8 @@
           corner of a square to put it in that corner. Each corner holds one label; clicking with
           another symbol or color replaces it.</li>
         <li>Drag a figure to move it. Right-click a square to empty it.</li>
+        <li>Click the <b>Chess Diagram Editor</b> title to start over: the start position, no
+          annotations or captions, and every setting at its default.</li>
         <li>With the pointer over a square: <kbd>R</kbd> rotates the figure 45° clockwise,
           <kbd>Shift</kbd>+<kbd>R</kbd> counterclockwise, <kbd>Del</kbd> empties the square.</li>
         <li>On a touch screen, long-press a figure for buttons that rotate it (↺ ↻), change its

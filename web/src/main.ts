@@ -52,10 +52,12 @@ let tool = "place";
 let color = "white";
 let variant = "plain";
 let angle = 0;
-let selection: Selection = { type: "piece", kind: "Q" };
+const DEFAULT_SELECTION: Selection = { type: "piece", kind: "Q" };
+const DEFAULT_SYMBOL = "A";
+let selection: Selection = DEFAULT_SELECTION;
 let markKind = "arrow";
 let markColor = "black";
-let labelSymbol = "A";
+let labelSymbol = DEFAULT_SYMBOL;
 let captionArea: HTMLTextAreaElement | null = null; // the caption the B and I buttons format
 let hover: string | null = null;
 let hoverCorner: string | null = null; // the corner of the hovered square under the pointer
@@ -91,8 +93,8 @@ function setStatus(text: string, error = false): void {
 
 // --- URL hash ---------------------------------------------------------------------------
 
-function loadHash(): State {
-  const p = new URLSearchParams(location.hash.slice(1));
+function loadHash(hash = location.hash): State {
+  const p = new URLSearchParams(hash.slice(1));
   return {
     fen: p.get("fen") || START,
     options: {
@@ -466,6 +468,37 @@ function selectTool(value: string): void {
   (document.querySelector(`input[name="tool"][value="${value}"]`) as HTMLInputElement).checked = true;
 }
 
+/**
+ * Start over: the start position with no annotations or captions, and every control at
+ * its default. The controls' defaults are their checked and selected attributes in the
+ * HTML; restoring those and replaying their change events resets the editor's own
+ * selections too. The page isn't reloaded, so Python doesn't have to start again.
+ */
+function reset(): void {
+  closeMenu();
+  const controls = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+    "aside input, aside textarea, aside select",
+  );
+  for (const el of controls) {
+    if (el instanceof HTMLSelectElement) {
+      const i = [...el.options].findIndex((o) => o.defaultSelected);
+      if (i >= 0) el.selectedIndex = i; // the others (border, wall) follow the state
+    } else if (el instanceof HTMLInputElement && (el.type === "radio" || el.type === "checkbox")) {
+      el.checked = el.defaultChecked;
+      if (el.type === "radio" && el.checked) el.dispatchEvent(new Event("change", { bubbles: true }));
+    } else {
+      el.value = el.defaultValue;
+    }
+  }
+  selection = DEFAULT_SELECTION;
+  labelSymbol = DEFAULT_SYMBOL;
+  $<HTMLInputElement>("label-symbol").value = labelSymbol;
+  captionArea = null;
+  state = loadHash("");
+  void updatePalette();
+  void enqueue(refresh);
+}
+
 // --- Caption formatting -----------------------------------------------------------------
 
 /**
@@ -737,6 +770,13 @@ function wire(): void {
       saved = localStorage.getItem("theme");
     } catch {}
     if (!saved) setTheme(e.matches);
+  });
+
+  // The title starts over. A modified click (new tab or window) opens a fresh editor.
+  $("home").addEventListener("click", (e) => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    reset();
   });
 
   // Help: a modal dialog. The link doesn't navigate, because the URL hash holds the diagram.
