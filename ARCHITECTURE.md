@@ -552,10 +552,13 @@ as the CLI writes them.
   functions. The board state is a canonical FEN string and the options are a dict of
   `RenderOptions` fields. `render` returns the canonical FEN, an SVG annotated with
   `data-square`, the board origin and size for pointer mapping, each cell's token, and
-  the annotations parsed (with their canonical text forms), so the UI never parses the
-  annotation grammar itself.
+  the annotations parsed (with their canonical text forms), so the UI never parses or
+  writes the annotation grammar itself.
   The edit functions (`set_cell`, `move`, `rotate`, `recolor`, `resize`) take a FEN and
-  return a new one, so every edit is checked by the real parser. `rotate` steps to the
+  return a new one, so every edit is checked by the real parser. `resize` also drops
+  the annotations on squares that are cut off. `toggle_annotation` adds, replaces or
+  removes an annotation given as fields (kind, squares, color, corner, symbol) and
+  returns the list in canonical text forms. `rotate` steps to the
   next angle the fonts support for that piece, and `recolor` to the next color (white,
   black, neutral) they support for that figure. `export` returns SVG, PDF bytes or a TeX
   snippet.

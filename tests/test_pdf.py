@@ -100,12 +100,13 @@ def test_pdf_matches_svg_raster(name: str, tmp_path: Path) -> None:
     # A page height that isn't a whole number of pixels rounds up in pdftoppm and to the
     # nearest pixel in Inkscape, so crop both to the size they share.
     heights = [
-        int(
-            subprocess.run(
-                ["identify", "-format", "%h", png], cwd=tmp_path, capture_output=True, text=True
-            ).stdout
-        )
-        for png in ("pdf.png", "svg.png")
+        int(h)
+        for h in subprocess.run(
+            ["identify", "-format", "%h\n", "pdf.png", "svg.png"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        ).stdout.split()
     ]
     # Downsample both so anti-aliasing of the fine hatching averages out.
     for png in ("pdf.png", "svg.png"):

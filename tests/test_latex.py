@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from cases import CASES
 
+from gcdiagram.geometry import CAPTION_GAP, U
 from gcdiagram.options import RenderOptions
 from gcdiagram.render.tex import num, render_tex, tex_escape, tex_parts
 
@@ -75,6 +76,14 @@ def test_escape() -> None:
     assert tex_escape("#2 & 50% {x}_y ~^\\") == (
         r"\#2 \& 50\% \{x\}\_y \textasciitilde{}\textasciicircum{}\textbackslash{}"
     )
+
+
+def test_caption_gap_matches_python() -> None:
+    """gcsnippet.sty's default caption gap is CAPTION_GAP, as in SVG and PDF."""
+    sty = (LATEX / "gcsnippet.sty").read_text()
+    match = re.search(r"\\newcommand\\gccaptiongap\{([\d.]+)\\gcsquare\}", sty)
+    assert match, "no \\gccaptiongap default in gcsnippet.sty"
+    assert float(match.group(1)) == pytest.approx(CAPTION_GAP / U)
 
 
 def test_snippet_shape() -> None:

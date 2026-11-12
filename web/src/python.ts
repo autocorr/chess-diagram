@@ -35,8 +35,8 @@ export interface LabelInfo {
 export interface Annotation {
   spec: string;
   kind: string;
-  /** "e4", or "e2-e4" for an arrow */
-  squares: string;
+  /** ["e4"], or ["e2", "e4"] for an arrow */
+  squares: string[];
   color: string;
   /** labels only: "tl", "tr", "bl" or "br", and one character; "" otherwise */
   corner: string;
@@ -110,8 +110,25 @@ export class Python {
   rotate = (fen: string, square: string, step: number) =>
     this.call<{ fen: string } | Failure>("rotate", fen, square, step);
   recolor = (fen: string, square: string) => this.call<{ fen: string } | Failure>("recolor", fen, square);
-  resize = (fen: string, width: number, height: number) =>
-    this.call<{ fen: string } | Failure>("resize", fen, width, height);
+  resize = (fen: string, width: number, height: number, annotations: string[]) =>
+    this.call<{ fen: string; annotations: string[] } | Failure>("resize", fen, width, height, annotations);
+  toggleAnnotation = (
+    annotations: string[],
+    kind: string,
+    squares: string[],
+    color: string,
+    corner: string,
+    symbol: string,
+  ) =>
+    this.call<{ annotations: string[] } | Failure>(
+      "toggle_annotation",
+      annotations,
+      kind,
+      squares,
+      color,
+      corner,
+      symbol,
+    );
   export = (fen: string, options: Options, fmt: string) =>
     this.call<{ data: string | Uint8Array; mime: string } | Failure>("export", fen, options, fmt);
   figureSvg = (token: string, shade: string) => this.call<string>("figure_svg", token, shade);

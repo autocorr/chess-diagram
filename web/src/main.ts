@@ -53,21 +53,21 @@ let color = "white";
 let variant = "plain";
 let angle = 0;
 const DEFAULT_SELECTION: Selection = { type: "piece", kind: "Q" };
-const DEFAULT_SYMBOL = "A";
 let selection: Selection = DEFAULT_SELECTION;
 let markKind = "arrow";
 let markColor = "black";
-let labelSymbol = DEFAULT_SYMBOL;
+let labelSymbol = $<HTMLInputElement>("label-symbol").defaultValue;
 let captionArea: HTMLTextAreaElement | null = null; // the caption the B and I buttons format
 let hover: string | null = null;
 let hoverCorner: string | null = null; // the corner of the hovered square under the pointer
-let labelPreview: { g: SVGGElement; texts: SVGTextElement[]; fill: SVGTextElement } | null = null;
+let labelPreview: { g: SVGGElement; halo: SVGTextElement; fill: SVGTextElement } | null = null;
 let pressed: string | null = null;
 let pointerType = "mouse"; // of the last pointerdown on the board
 let longPress: ReturnType<typeof setTimeout> | undefined;
 let menuSquare: string | null = null; // the square the touch menu is open for
 let queue: Promise<unknown> = Promise.resolve();
-const icons = new Map<string, string>();
+const icons = new Map<string, Promise<string>>(); // in flight or done, so each is fetched once
+let palettePending = false;
 
 let pendingActions = 0;
 
@@ -207,11 +207,11 @@ function showLabelPreview(): void {
     const fill = document.createElementNS(SVG_NS, "text");
     g.append(halo, fill);
     boardEl.querySelector("svg")!.append(g);
-    labelPreview = { g, texts: [halo, fill], fill };
+    labelPreview = { g, halo, fill };
   }
   labelPreview.g.setAttribute("transform", `translate(${view.boardX + pos[1] * U} ${view.boardY + pos[0] * U})`);
   labelPreview.fill.setAttribute("fill", info.label.fills[markColor] ?? "#000");
-  for (const text of labelPreview.texts) {
+  for (const text of [labelPreview.halo, labelPreview.fill]) {
     text.textContent = labelSymbol;
     text.setAttribute("x", String(corner.x));
     text.setAttribute("y", String(corner.y));
@@ -245,7 +245,8 @@ function showAnnotations(): void {
   const marks = view?.annotations ?? [];
   list.replaceChildren(
     ...marks.map((m, i) => {
-      const where = m.corner ? `label ${m.symbol} ${m.squares} ${CORNER_NAMES[m.corner]}` : `${m.kind} ${m.squares}`;
+      const squares = m.squares.join("-");
+      const where = m.corner ? `label ${m.symbol} ${squares} ${CORNER_NAMES[m.corner]}` : `${m.kind} ${squares}`;
       const name = `${where}${m.color === "black" ? "" : ` (${COLOR_LABELS[m.color] ?? m.color})`}`;
       const item = document.createElement("li");
       const button = document.createElement("button");
@@ -338,7 +339,7 @@ function openMenu(square: string): void {
   // Holes, walls and special figures have no rotations; holes, walls and single-version
   // specials (box, cross) have no colors.
   const figure = cell !== "." && cell !== "*";
-  const special = /@([a-z-]+)/i.exec(cell)?.[1]?.toLowerCase();
+  const special = /@([a-z]+)/i.exec(cell)?.[1]?.toLowerCase();
   const versions = special ? new Set(Object.values(info.specials[special] ?? {})).size : 3;
   for (const b of menu.querySelectorAll<HTMLButtonElement>("[data-rotate]")) b.hidden = !figure || !!special;
   $("menu-recolor").hidden = !figure || versions < 2;
@@ -395,16 +396,21 @@ function click(square: string, corner: string): void {
     void edit(square, current === "." ? "" : ".");
   } else if (tool === "wall") {
     void edit(square, current === "*" ? "" : "*");
-  } else if (tool === "annotate" && markKind === "label") {
-    toggleMark({ kind: "label", squares: square, color: markColor, corner, symbol: labelSymbol });
   } else if (tool === "annotate" && markKind !== "arrow") {
-    toggleMark({ kind: markKind, squares: square, color: markColor, corner: "", symbol: "" });
+    const label = markKind === "label";
+    toggleMark({
+      kind: markKind,
+      squares: [square],
+      color: markColor,
+      corner: label ? corner : "",
+      symbol: label ? labelSymbol : "",
+    });
   }
 }
 
 function drag(from: string, to: string): void {
   if (tool === "annotate") {
-    toggleMark({ kind: "arrow", squares: `${from}-${to}`, color: markColor, corner: "", symbol: "" });
+    toggleMark({ kind: "arrow", squares: [from, to], color: markColor, corner: "", symbol: "" });
   } else if (cellAt(from) !== "") {
     void enqueue(async () => apply(await py.move(state.fen, from, to)));
   }
@@ -416,29 +422,18 @@ function rotate(square: string, step: number): void {
 
 // --- Annotations ------------------------------------------------------------------------
 
-/** The text form of an annotation (gcdiagram/annotations.py); black is left out. */
-function markSpec(m: Mark): string {
-  const color = m.color === "black" ? "" : `:${m.color}`;
-  if (m.kind === "label") return `label:${m.squares}:${m.corner}:${m.symbol}${color}`;
-  return `${m.kind}:${m.squares}${color}`;
-}
-
 /**
- * Add an annotation. If the same kind is already in the same place (square(s), and
- * corner for a label), remove it if it is the same, or replace it when the color or
- * the label's symbol differs. It runs in the queue, so it sees every earlier edit.
+ * Add, replace or remove an annotation (gcdiagram/editor.py toggle_annotation). It runs
+ * in the queue, so it sees every earlier edit.
  */
-function toggleMark(mark: Mark): void {
+function toggleMark(m: Mark): void {
   void enqueue(async () => {
-    const specs = (view?.annotations ?? []).map((a) => a.spec);
-    const spec = markSpec(mark);
-    const i = (view?.annotations ?? []).findIndex(
-      (m) => m.kind === mark.kind && m.squares === mark.squares && m.corner === mark.corner,
-    );
-    if (i < 0) specs.push(spec);
-    else if (specs[i] === spec) specs.splice(i, 1);
-    else specs[i] = spec;
-    state.options.annotations = specs;
+    const result = await py.toggleAnnotation(state.options.annotations, m.kind, m.squares, m.color, m.corner, m.symbol);
+    if (failed(result)) {
+      setStatus(result.error, true);
+      return;
+    }
+    state.options.annotations = result.annotations;
     await refresh();
   });
 }
@@ -452,15 +447,6 @@ function setLabelSymbol(input: HTMLInputElement): void {
   if (typed) labelSymbol = typed;
   if (input.value !== "" || document.activeElement !== input) input.value = labelSymbol;
   showLabelPreview();
-}
-
-/** Keep only annotations whose squares exist on a width x height board. */
-function annotationsWithin(width: number, height: number): string[] {
-  return (view?.annotations ?? [])
-    .filter((a) =>
-      (a.squares.match(/[a-z]\d+/g) ?? []).every((sq) => FILES.indexOf(sq[0]!) < width && Number(sq.slice(1)) <= height),
-    )
-    .map((a) => a.spec);
 }
 
 function selectTool(value: string): void {
@@ -491,11 +477,10 @@ function reset(): void {
     }
   }
   selection = DEFAULT_SELECTION;
-  labelSymbol = DEFAULT_SYMBOL;
-  $<HTMLInputElement>("label-symbol").value = labelSymbol;
+  labelSymbol = $<HTMLInputElement>("label-symbol").defaultValue;
   captionArea = null;
   state = loadHash("");
-  void updatePalette();
+  schedulePalette();
   void enqueue(refresh);
 }
 
@@ -574,13 +559,26 @@ function selectedToken(): string | null {
   return selection.type === "piece" ? pieceToken(selection.kind) : specialToken(selection.name);
 }
 
-async function icon(token: string): Promise<string> {
+function icon(token: string): Promise<string> {
   let svg = icons.get(token);
   if (svg === undefined) {
-    svg = await py.figureSvg(token, "light");
+    svg = py.figureSvg(token, "light");
     icons.set(token, svg);
   }
   return svg;
+}
+
+/**
+ * Update the palette once, after the current task. Several controls can change together
+ * (a reset replays every radio's change event), and they then share one update.
+ */
+function schedulePalette(): void {
+  if (palettePending) return;
+  palettePending = true;
+  queueMicrotask(() => {
+    palettePending = false;
+    void updatePalette();
+  });
 }
 
 function buildPalette(): void {
@@ -824,17 +822,17 @@ function wire(): void {
   });
   bindRadios("color", (v) => {
     color = v;
-    void updatePalette();
+    schedulePalette();
   });
   bindRadios("variant", (v) => {
     variant = v;
-    void updatePalette();
+    schedulePalette();
   });
   $("angles").addEventListener("change", (e) => {
     const input = e.target as HTMLInputElement;
     if (input.name !== "angle" || !input.checked) return;
     angle = Number(input.value);
-    void updatePalette();
+    schedulePalette();
   });
 
   const resize = () => {
@@ -845,8 +843,9 @@ function wire(): void {
       return;
     }
     void enqueue(async () => {
-      state.options.annotations = annotationsWithin(width, height);
-      await apply(await py.resize(state.fen, width, height));
+      const result = await py.resize(state.fen, width, height, state.options.annotations);
+      if (!failed(result)) state.options.annotations = result.annotations; // those still on the board
+      await apply(result);
     });
   };
   $("files").addEventListener("change", resize);
@@ -904,7 +903,6 @@ function wire(): void {
     showLabelPreview();
   });
   const symbolInput = $<HTMLInputElement>("label-symbol");
-  symbolInput.value = labelSymbol;
   symbolInput.addEventListener("input", () => setLabelSymbol(symbolInput));
   symbolInput.addEventListener("blur", () => setLabelSymbol(symbolInput));
   symbolInput.addEventListener("focus", () => symbolInput.select());

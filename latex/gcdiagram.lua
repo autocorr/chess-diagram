@@ -96,14 +96,14 @@ local function parse_special(name, neutral, pos)
       string.format("unknown special '%s'; known: %s", name, table.concat(known, ", ")), pos)
   end
   local color
-  local only_plain = true
+  local colorless = true -- box, cross
   for c in pairs(colors) do
-    if c ~= "none" and c ~= "neutral" then only_plain = false end
+    if c ~= "none" then colorless = false end
   end
   if neutral then
     color = "neutral"
-  elseif only_plain then
-    color = next(colors)
+  elseif colorless then
+    color = "none"
   else
     color = name:sub(1, 1):match("%u") and "white" or "black"
   end
@@ -225,9 +225,7 @@ end
 
 local function figure_token(fig)
   if fig.type == "special" then
-    local colors = specials[fig.name]
-    local only_neutral = colors.neutral and next(colors, next(colors)) == nil
-    if fig.color == "neutral" and not only_neutral then
+    if fig.color == "neutral" then
       return "{=@" .. fig.name .. "}"
     end
     local name = fig.name

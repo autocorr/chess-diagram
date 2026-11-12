@@ -148,9 +148,9 @@ def _special(name: str, *, neutral: bool, pos: int, catalog: Catalog) -> Special
     color: SpecialColor
     if neutral:
         color = "neutral"
-    elif colors <= {"none", "neutral"}:
-        # Single-variant specials (box, cross) accept either case.
-        (color,) = colors
+    elif colors == {"none"}:
+        # Colorless specials (box, cross) accept either case.
+        color = "none"
     else:
         color = "white" if name[0].isupper() else "black"
     if color not in colors:
@@ -166,13 +166,12 @@ def _describe(p: Piece) -> str:
     return f"{p.color} {variant}{PIECE_NAMES[p.kind]} at {p.angle} degrees"
 
 
-def serialize(board: Board, catalog: Catalog | None = None) -> str:
+def serialize(board: Board) -> str:
     """Canonical extended FEN for a board: serialize(parse(s)) is stable."""
-    catalog = catalog or load_catalog()
-    return "/".join(_serialize_rank(row, catalog) for row in board.cells)
+    return "/".join(_serialize_rank(row) for row in board.cells)
 
 
-def _serialize_rank(row: list[Cell], catalog: Catalog) -> str:
+def _serialize_rank(row: list[Cell]) -> str:
     out: list[str] = []
     run = 0
     for cell in row:
@@ -184,7 +183,7 @@ def _serialize_rank(row: list[Cell], catalog: Catalog) -> str:
             run = 0
         if isinstance(cell, Square):
             assert cell.figure is not None
-            out.append(figure_token(cell.figure, catalog))
+            out.append(figure_token(cell.figure))
         elif isinstance(cell, Wall):
             out.append("*")
         else:
@@ -194,11 +193,10 @@ def _serialize_rank(row: list[Cell], catalog: Catalog) -> str:
     return "".join(out)
 
 
-def figure_token(figure: Figure, catalog: Catalog | None = None) -> str:
+def figure_token(figure: Figure) -> str:
     """The canonical FEN token for one figure, e.g. 'Q', '{n90}', '{=R}', '{@Star}'."""
     if isinstance(figure, Special):
-        colors = (catalog or load_catalog()).specials.get(figure.name, set())
-        if figure.color == "neutral" and colors != {"neutral"}:
+        if figure.color == "neutral":
             return f"{{=@{figure.name}}}"
         name = figure.name.capitalize() if figure.color == "white" else figure.name
         return f"{{@{name}}}"

@@ -7,11 +7,21 @@ from JavaScript; errors come back as {"error": message, "code": code}.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import fields
-from typing import Any, get_args
+from typing import Any, cast, get_args
 
 from . import svgpath
-from .annotations import CORNERS, FILL, LABEL_CHARS, Annotation, parse_annotation
+from .annotations import (
+    CORNERS,
+    FILL,
+    LABEL_CHARS,
+    Annotation,
+    AnnotationColor,
+    Corner,
+    Kind,
+    parse_annotation,
+)
 from .board import (
     ANGLES,
     EMPTY,
@@ -28,6 +38,7 @@ from .board import (
     Square,
     Variant,
     Wall,
+    parse_square,
 )
 from .catalog import load_catalog
 from .fen import FenError, figure_token, parse, serialize
@@ -75,10 +86,7 @@ def info() -> dict[str, Any]:
                                 "angle": angle,
                             }
                         )
-    specials = {
-        name: _special_tokens(name, cat.specials[name])
-        for name in sorted(cat.specials, key=_special_order)
-    }
+    specials = {n: _special_tokens(n, cat.specials[n]) for n in _special_order(cat.specials)}
     a1 = parse("1")  # one square, at the origin
     corners = {}
     for corner in CORNERS:
@@ -100,18 +108,14 @@ _FIRST_SPECIALS = ("orphan", "equihopper")
 _LAST_SPECIALS = ("star", "cross", "box")
 
 
-def _special_order(name: str) -> tuple[int, int, str]:
-    if name in _FIRST_SPECIALS:
-        return (0, _FIRST_SPECIALS.index(name), name)
-    if name in _LAST_SPECIALS:
-        return (2, _LAST_SPECIALS.index(name), name)
-    return (1, 0, name)
+def _special_order(names: Iterable[str]) -> list[str]:
+    ends = {*_FIRST_SPECIALS, *_LAST_SPECIALS}
+    return [*_FIRST_SPECIALS, *sorted(set(names) - ends), *_LAST_SPECIALS]
 
 
 def _special_tokens(name: str, colors: set[SpecialColor]) -> dict[str, str]:
-    if colors <= {"none", "neutral"}:
-        (only,) = colors
-        return dict.fromkeys(_COLORS, figure_token(Special(name, only)))
+    if colors == {"none"}:
+        return dict.fromkeys(_COLORS, figure_token(Special(name, "none")))
     return {c: figure_token(Special(name, c)) for c in _COLORS if c in colors}
 
 
@@ -142,13 +146,13 @@ def render(fen: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
     }
 
 
-def _annotation(a: Annotation) -> dict[str, str]:
-    """An annotation as the editor lists and toggles it, with its canonical text form.
-    Only labels have a corner and a symbol; the others have "" for both."""
+def _annotation(a: Annotation) -> dict[str, Any]:
+    """An annotation as the editor lists it, with its canonical text form. Only labels
+    have a corner and a symbol; the others have "" for both."""
     return {
         "spec": str(a),
         "kind": a.kind,
-        "squares": "-".join(a.squares),
+        "squares": list(a.squares),
         "color": a.color,
         "corner": a.corner or "",
         "symbol": a.symbol,
@@ -244,8 +248,45 @@ def recolor(fen: str, square: str) -> dict[str, Any]:
     return {"fen": serialize(board)}
 
 
-def resize(fen: str, width: int, height: int) -> dict[str, Any]:
-    """Resize, keeping rank 1 at the bottom and file a on the left."""
+def toggle_annotation(
+    annotations: list[str],
+    kind: str,
+    squares: list[str],
+    color: str,
+    corner: str = "",
+    symbol: str = "",
+) -> dict[str, Any]:
+    """Add an annotation, in canonical text forms. If one of the same kind is already in
+    the same place (square(s), and corner for a label), remove it when it is the same,
+    or replace it when its color or symbol differs."""
+    try:
+        # The casts are checked in Annotation.__post_init__.
+        new = Annotation(
+            cast(Kind, kind),
+            tuple(squares),
+            cast(AnnotationColor, color),
+            cast(Corner, corner) if corner else None,
+            symbol,
+        )
+        anns = [parse_annotation(a) for a in annotations]
+    except ValueError as e:
+        return _error(e)
+    place = (new.kind, new.squares, new.corner)
+    i = next((i for i, a in enumerate(anns) if (a.kind, a.squares, a.corner) == place), None)
+    if i is None:
+        anns.append(new)
+    elif anns[i] == new:
+        del anns[i]
+    else:
+        anns[i] = new
+    return {"annotations": [str(a) for a in anns]}
+
+
+def resize(
+    fen: str, width: int, height: int, annotations: list[str] | None = None
+) -> dict[str, Any]:
+    """Resize, keeping rank 1 at the bottom and file a on the left. Annotations on a
+    square that is cut off are dropped."""
     try:
         board = parse(fen)
         cells = []
@@ -255,9 +296,22 @@ def resize(fen: str, width: int, height: int) -> dict[str, Any]:
                 [board.cells[old_r][c] if board.contains(old_r, c) else EMPTY for c in range(width)]
             )
         new = Board(cells)
+        kept = [
+            str(a)
+            for a in map(parse_annotation, annotations or [])
+            if all(_on_board(sq, width, height) for sq in a.squares)
+        ]
     except (FenError, ValueError) as e:
         return _error(e)
-    return {"fen": serialize(new)}
+    return {"fen": serialize(new), "annotations": kept}
+
+
+def _on_board(square: str, width: int, height: int) -> bool:
+    try:
+        _, col = parse_square(square, height)
+    except ValueError:  # its rank is cut off
+        return False
+    return col < width
 
 
 def export(fen: str, options: dict[str, Any] | None, fmt: str) -> dict[str, Any]:

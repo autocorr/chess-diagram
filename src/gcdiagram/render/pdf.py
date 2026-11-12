@@ -46,6 +46,11 @@ def _rgb(color: str, op: str) -> str:
     return " ".join(fmt(v) for v in parse_color(color)) + f" {op}"
 
 
+def _start_x(x: float, anchor: str, width: float) -> float:
+    """The x where text of the given width starts, for an x given at its anchor."""
+    return x - {"start": 0, "middle": width / 2, "end": width}[anchor]
+
+
 def _pdf_string(text: str) -> str:
     raw = text.encode("cp1252", errors="replace").decode("latin-1")
     return "(" + raw.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") + ")"
@@ -180,9 +185,7 @@ def _document(lay: Layout, opts: RenderOptions, cat: Catalog) -> bytes:
     # Labels: stroked in white (text rendering mode 1), then filled. Text state is part
     # of the graphics state, so Q restores the default fill mode.
     for label in lay.labels:
-        x = label.x
-        if label.anchor == "end":
-            x -= text_width(label.text, LABEL_SIZE, bold=True)
+        x = _start_x(label.x, label.anchor, text_width(label.text, LABEL_SIZE, bold=True))
         font = f"BT/{names[(True, False)]} {fmt(LABEL_SIZE)} Tf 1 0 0 -1 {fmt(x)} {fmt(label.y)} Tm"
         text = f"{_pdf_string(label.text)}Tj ET"
         if label.halo:
@@ -190,8 +193,7 @@ def _document(lay: Layout, opts: RenderOptions, cat: Catalog) -> bytes:
         ops.append(f"q {_rgb(label.fill, 'rg')} {font} {text} Q")
 
     for t in lay.texts:
-        width = line_width(t.runs, t.size)
-        x = t.x - {"start": 0, "middle": width / 2, "end": width}[t.anchor]
+        x = _start_x(t.x, t.anchor, line_width(t.runs, t.size))
         shows = "".join(
             f"/{names[(r.bold, r.italic)]} {fmt(t.size)} Tf"
             + (f" 1 0 0 -1 {fmt(x)} {fmt(t.y)} Tm " if i == 0 else "")

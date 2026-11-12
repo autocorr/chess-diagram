@@ -9,13 +9,19 @@ const EMPTY8 = "8/8/8/8/8/8/8/8";
 const U = 2000;
 const FRAME: Record<string, number> = { single: 100, double: 350, outline: 100, none: 0 };
 
-async function open(page: Page, hash = ""): Promise<void> {
+/** Load the page with go() and wait until Python is ready, failing on any page error. */
+async function load(page: Page, go: () => Promise<unknown>): Promise<void> {
   const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(`/${hash}`);
+  const onError = (e: Error) => errors.push(e.message);
+  page.on("pageerror", onError);
+  await go();
   await expect(page.locator("body[data-ready]")).toBeAttached({ timeout: 45_000 });
+  page.off("pageerror", onError);
   expect(errors).toEqual([]);
 }
+
+const open = (page: Page, hash = "") => load(page, () => page.goto(`/${hash}`));
+const reload = (page: Page) => load(page, () => page.reload());
 
 const fen = (page: Page) => page.getByTestId("fen");
 
@@ -286,8 +292,7 @@ test("annotations and diagram options", async ({ page }) => {
   expect(page.url()).toContain("border=double");
   expect(page.url()).toContain("mark=arrow%3Ae2-e4");
   // The URL restores everything.
-  await page.reload();
-  await expect(page.locator("body[data-ready]")).toBeAttached({ timeout: 45_000 });
+  await reload(page);
   await expect(page.getByTestId("border")).toHaveValue("double");
   await expect(items).toHaveText(["arrow e2-e4", "cross h8 (green)", "square h8 (green)", "triangle h8 (green)", "dot h8 (green)"]);
   await expect(page.locator("#board svg text")).toHaveText(["#2", "(16+16)"]);
@@ -351,8 +356,7 @@ test("labels go in the corner clicked, with the symbol typed", async ({ page }) 
   await expect(items).toHaveText(["label : e4 top right (blue)", "label : e4 bottom left (blue)"]);
   await clickCorner(page, "e4", "tr");
   await expect(items).toHaveText(["label : e4 bottom left (blue)"]);
-  await page.reload();
-  await expect(page.locator("body[data-ready]")).toBeAttached({ timeout: 45_000 });
+  await reload(page);
   await expect(items).toHaveText(["label : e4 bottom left (blue)"]);
 });
 

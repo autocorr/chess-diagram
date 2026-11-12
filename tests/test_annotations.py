@@ -11,7 +11,7 @@ from helpers import pdf_content
 
 from gcdiagram.annotations import FILL, LABEL_CHARS, Annotation, parse_annotation
 from gcdiagram.cli import main
-from gcdiagram.editor import info, options_from, render
+from gcdiagram.editor import info, options_from, render, resize, toggle_annotation
 from gcdiagram.fen import parse
 from gcdiagram.geometry import HALO, LABEL_CAP, LABEL_INSET, LABEL_SIZE, U, layout
 from gcdiagram.options import RenderOptions
@@ -277,7 +277,7 @@ def test_editor_lists_annotations_parsed_and_canonical() -> None:
         {
             "spec": "label:e4:tr:a:blue",
             "kind": "label",
-            "squares": "e4",
+            "squares": ["e4"],
             "color": "blue",
             "corner": "tr",
             "symbol": "a",
@@ -285,9 +285,38 @@ def test_editor_lists_annotations_parsed_and_canonical() -> None:
         {
             "spec": "arrow:e2-e4",
             "kind": "arrow",
-            "squares": "e2-e4",
+            "squares": ["e2", "e4"],
             "color": "black",
             "corner": "",
             "symbol": "",
         },
     ]
+
+
+def test_editor_toggles_annotations() -> None:
+    def toggle(anns: list[str], kind: str, squares: list[str], *rest: str) -> list[str]:
+        return toggle_annotation(anns, kind, squares, *rest)["annotations"]
+
+    anns = toggle([], "circle", ["e4"], "black")
+    assert anns == ["circle:e4"]
+    anns = toggle(anns, "arrow", ["e2", "e4"], "blue")
+    assert anns == ["circle:e4", "arrow:e2-e4:blue"]
+    assert toggle(anns, "circle", ["e4"], "green") == ["circle:e4:green", "arrow:e2-e4:blue"]
+    assert toggle(anns, "circle", ["e4"], "black") == ["arrow:e2-e4:blue"]  # the same: removed
+    assert toggle(anns, "dot", ["e4"], "black") == [*anns, "dot:e4"]  # another kind: added
+    # Labels are told apart by corner, and replaced by another symbol in the same corner.
+    anns = toggle([], "label", ["e4"], "black", "tl", "A")
+    anns = toggle(anns, "label", ["e4"], "black", "br", "B")
+    assert anns == ["label:e4:tl:A", "label:e4:br:B"]
+    assert toggle(anns, "label", ["e4"], "black", "tl", "C") == ["label:e4:tl:C", "label:e4:br:B"]
+    assert toggle(anns, "label", ["e4"], "black", "tl", "A") == ["label:e4:br:B"]
+    # Existing forms needn't be canonical; the result is.
+    assert toggle([" Circle : E4 "], "dot", ["a1"], "gray") == ["circle:e4", "dot:a1:gray"]
+    assert toggle_annotation([], "label", ["e4"], "black", "tl", "")["code"] == "error"
+
+
+def test_editor_resize_drops_annotations_cut_off() -> None:
+    anns = ["circle:a1", "label:h1:tr:A", "arrow:a1-a8", "dot:a2:blue"]
+    out = resize(EMPTY, 7, 2, anns)
+    assert out["annotations"] == ["circle:a1", "dot:a2:blue"]
+    assert resize(EMPTY, 8, 8, anns)["annotations"] == anns
