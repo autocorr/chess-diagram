@@ -79,6 +79,15 @@ and `LUAINPUTS`.
 The other keys are `caption above`, `wall=solid|box`, `arrow color=RRGGBB` and
 `arrow opacity=0.6`. Annotations (`-m`) are only written by the Python route so far.
 
+`latex/templates/problem-of-the-week.tex` is a landscape US-letter "Chess Problem of the
+Week" poster built on this route. Edit the settings at its top (FEN, author, source,
+problem type and contact details) and compile it from the repository root:
+
+```sh
+TEXINPUTS=latex//: LUAINPUTS=latex//: lualatex -output-directory=build \
+  latex/templates/problem-of-the-week.tex
+```
+
 **LuaLaTeX or XeLaTeX, snippets written by Python:**
 
 ```sh

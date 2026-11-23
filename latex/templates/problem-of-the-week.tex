@@ -1,0 +1,193 @@
+% problem-of-the-week.tex -- a "Chess Problem of the Week" poster (US letter, landscape).
+%
+% Compile with LuaLaTeX, with latex/ on both search paths, from the repository root:
+%
+%   TEXINPUTS=latex//: LUAINPUTS=latex//: lualatex -output-directory=build \
+%     latex/templates/problem-of-the-week.tex
+%
+% Edit the settings below. \ProblemKind and \ProblemMoves pick the explanation on the
+% left and the stipulation under the diagram:
+%
+%   direct  2      White to play and mate in 2 moves            (#2)
+%   help    2      Black moves first, both sides help           (h#2)
+%   self    3      White forces Black to give mate              (s#3)
+%   study   win    endgame study, win or draw                   (+ or =)
+%
+% A non-empty \StipulationOverride replaces the generated stipulation, e.g. for
+% "Helpmate in 2, two solutions".
+\documentclass[11pt]{article}
+\usepackage[letterpaper,landscape,margin=0.6in]{geometry}
+\usepackage{fontspec}
+\usepackage{xcolor}
+\usepackage{gcdiagram}
+\gcfontpath{data/}  % relative to where lualatex runs; drop if the fonts are installed
+
+% ---------------------------------------------------------------------------------
+% Settings: change these each week.
+% ---------------------------------------------------------------------------------
+\newcommand\PosterTitle{Chess Problem\\of the Week}
+\newcommand\WeekLabel{Week 47 \,\textperiodcentered\, November 23, 2026}
+
+\newcommand\ProblemAuthor{A.\,N. Composer}
+\newcommand\ProblemSource{The Example Gazette}
+\newcommand\ProblemDate{2026}
+\newcommand\ProblemFEN{k7/8/2K5/8/8/8/8/1R6}
+\newcommand\ProblemKind{direct}  % direct, help, self or study
+\newcommand\ProblemMoves{2}      % number of moves; for a study, win or draw
+\newcommand\StipulationOverride{}
+
+\newcommand\ContactName{Your Chess Club}
+\newcommand\ContactLines{%
+  Send your solution to \texttt{solutions@example.org}\\
+  or drop it in the box outside Room 101.\\
+  Solution posted next week.}
+
+% Fonts and colors.
+\setmainfont{TeX Gyre Pagella}
+\setsansfont{TeX Gyre Heros}
+\definecolor{accent}{HTML}{7A1F1F}
+\definecolor{muted}{HTML}{555555}
+
+% Diagram size: 48pt squares make an 8x8 board about 5.3 in square.
+\gcdiagramsetup{size=48pt, border=double}
+\renewcommand\gccaptionfont{\Large}
+
+% ---------------------------------------------------------------------------------
+% Problem types. \ProblemType{<kind>}{<moves>} sets \Stipulation (the caption) and
+% \HowItWorks (the left-hand explanation).
+% ---------------------------------------------------------------------------------
+\ExplSyntaxOn
+\NewDocumentCommand \ProblemType { m m }
+  {
+    \str_case:nnF {#1}
+      {
+        {direct}
+          {
+            \Stipulation { White~to~play~and~mate~in~#2 \quad \textbf{\#\,#2} }
+            \HowItWorks
+              {
+                \Lead{Direct~mate.}~White~moves~first~and~forces~checkmate~in~at~most~
+                \Moves{#2},~however~Black~defends.
+                \par
+                The~first~move,~the~\emph{key},~must~work~against~every~defense.~
+                Keys~are~usually~quiet:~not~a~check~or~a~capture,~often~a~move~that~
+                seems~to~give~Black~more~freedom.
+                \par
+                Look~for~threats~White~could~make,~then~ask~how~each~Black~reply~
+                fails.~There~is~only~one~key~that~works.
+              }
+          }
+        {help}
+          {
+            \Stipulation { Helpmate~in~#2 \quad \textbf{h\#\,#2} }
+            \HowItWorks
+              {
+                \Lead{Helpmate.}~Black~moves~first,~and~both~sides~cooperate~so~that~
+                White's~\Ordinal{#2}~move~checkmates~Black.
+                \par
+                Neither~side~is~trying~to~win:~the~puzzle~is~to~find~the~one~
+                sequence~of~\Moves{#2}~each~that~ends~in~mate.~Black~often~blocks~
+                its~own~king,~and~each~piece~has~a~job~to~do.
+                \par
+                Work~backward:~picture~a~mating~position,~then~find~how~to~reach~it.
+              }
+          }
+        {self}
+          {
+            \Stipulation { Selfmate~in~#2 \quad \textbf{s\#\,#2} }
+            \HowItWorks
+              {
+                \Lead{Selfmate.}~White~moves~first~and~forces~\emph{Black}~to~give~
+                checkmate~on~Black's~\Ordinal{#2}~move.~Black~resists~and~will~not~
+                mate~unless~forced~to.
+                \par
+                White~must~leave~Black~no~choice:~every~legal~Black~move~in~the~
+                end~has~to~mate~the~White~king.
+                \par
+                It~is~chess~in~reverse,~so~look~for~ways~to~take~away~Black's~
+                harmless~moves.
+              }
+          }
+        {study}
+          {
+            \str_if_eq:nnTF {#2} {draw}
+              { \Stipulation { White~to~play~and~draw \quad \textbf{=} } }
+              { \Stipulation { White~to~play~and~win \quad \textbf{+} } }
+            \HowItWorks
+              {
+                \Lead{Endgame~study.}~White~moves~first~and~\str_if_eq:nnTF {#2} {draw}
+                { holds~the~draw }{ wins }~against~Black's~best~defense.
+                \par
+                Unlike~a~mate~problem,~there~is~no~move~limit.~The~solution~is~the~
+                main~line~up~to~a~position~whose~result~is~clear,~and~it~usually~
+                contains~a~surprising~idea.
+                \par
+                Check~your~line~against~Black's~strongest~replies,~not~just~the~
+                obvious~ones.
+              }
+          }
+      }
+      { \msg_error:nnn { potw } { unknown-type } {#1} }
+  }
+\msg_new:nnn { potw } { unknown-type }
+  { Unknown~problem~type~'#1'.~Use~direct,~help,~self~or~study. }
+
+% "1 move", "2 moves", ...
+\NewDocumentCommand \Moves { m }
+  { #1~\int_compare:nNnTF {#1} = {1} { move } { moves } }
+% "1st", "2nd", "3rd", "4th", ...
+\NewDocumentCommand \Ordinal { m }
+  {
+    #1
+    \int_compare:nNnTF { \int_mod:nn {#1} {100} / 10 } = {1}
+      { th }
+      {
+        \int_case:nnF { \int_mod:nn {#1} {10} }
+          { {1} {st} {2} {nd} {3} {rd} }
+          { th }
+      }
+  }
+\ExplSyntaxOff
+\newcommand\Stipulation[1]{\def\StipulationText{#1}}
+\newcommand\HowItWorks[1]{\def\HowItWorksText{#1}}
+\newcommand\Lead[1]{{\sffamily\bfseries\color{accent}#1}}
+\edef\next{\noexpand\ProblemType{\ProblemKind}{\ProblemMoves}}\next
+\ifcat$\detokenize\expandafter{\StipulationOverride}$\else
+  \let\StipulationText\StipulationOverride
+\fi
+
+% ---------------------------------------------------------------------------------
+% Layout. Nothing below needs to change from week to week.
+% ---------------------------------------------------------------------------------
+% \gcdiagram reads its FEN verbatim, so \ProblemFEN is expanded before it gets there.
+\newcommand\PosterDiagram[1]{%
+  \gcdiagram[
+    caption above={\textbf{\ProblemAuthor}\\\textit{\ProblemSource}, \ProblemDate},
+    caption={\StipulationText},
+    count,
+  ]{#1}}
+\pagestyle{empty}
+\setlength\parindent{0pt}
+\begin{document}
+\noindent
+\begin{minipage}[c][\textheight][t]{0.40\textwidth}
+  {\sffamily\bfseries\color{accent}\fontsize{38}{42}\selectfont\PosterTitle\par}
+  \vspace{6pt}
+  {\color{accent}\rule{\linewidth}{2pt}\par}
+  \vspace{4pt}
+  {\sffamily\large\color{muted}\WeekLabel\par}
+  \vspace{24pt}
+  {\Large\setlength\parskip{0.7em}\raggedright\HowItWorksText\par}
+  \vfill
+  {\color{accent}\rule{\linewidth}{0.8pt}\par}
+  \vspace{6pt}
+  {\sffamily\bfseries\Large\ContactName\par}
+  \vspace{2pt}
+  {\large\ContactLines\par}
+\end{minipage}%
+\hfill
+\begin{minipage}[c][\textheight][c]{0.55\textwidth}
+  \centering
+  \expandafter\PosterDiagram\expandafter{\ProblemFEN}
+\end{minipage}
+\end{document}
