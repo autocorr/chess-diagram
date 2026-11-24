@@ -848,6 +848,34 @@ function wire(): void {
       await apply(result);
     });
   };
+  // Transform: shifts, turns and mirrors move the annotations along with the board.
+  const moveAll = (call: () => Promise<{ fen: string; annotations: string[] } | Failure>) =>
+    enqueue(async () => {
+      const result = await call();
+      if (!failed(result)) state.options.annotations = result.annotations; // those still on the board
+      await apply(result);
+    });
+  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-shift]")) {
+    b.addEventListener("click", () => moveAll(() => py.shift(state.fen, b.dataset.shift!, state.options.annotations)));
+  }
+  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-transform]")) {
+    b.addEventListener("click", () =>
+      moveAll(() => py.transform(state.fen, b.dataset.transform!, state.options.annotations)),
+    );
+  }
+  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-colors]")) {
+    b.addEventListener("click", () =>
+      enqueue(async () => {
+        const target = b.dataset.colors!;
+        const result = await py.setColors(state.fen, target);
+        await apply(result);
+        if (failed(result)) return;
+        const n = result.unchanged;
+        setStatus(n === 0 ? "Ready" : `${n} figure${n === 1 ? " has" : "s have"} no ${target} version in the GC fonts`);
+      }),
+    );
+  }
+
   $("files").addEventListener("change", resize);
   $("ranks").addEventListener("change", resize);
   $("start").addEventListener("click", () => {

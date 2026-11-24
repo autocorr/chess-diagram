@@ -47,6 +47,11 @@
         <li><b>Label</b>: type a letter, digit or ASCII symbol under <b>Annotation</b>, then click near a
           corner of a square to put it in that corner. Each corner holds one label; clicking with
           another symbol or color replaces it.</li>
+        <li><b>Transform</b>: <b>Shift</b> moves every figure one square; figures pushed off the board,
+          or onto a hole or wall, are removed. <b>Turn</b> rotates the board a quarter turn or mirrors
+          it, with its holes and walls; the figures stay upright. Annotations move along. <b>Colors</b>
+          makes every figure white, black or neutral, or swaps white and black; a figure the fonts have
+          no such version of keeps its color.</li>
         <li>Drag a figure to move it. Right-click a square to empty it.</li>
         <li>Click the <b>Chess Diagram Editor</b> title to start over: the start position, no
           annotations or captions, and every setting at its default.</li>
@@ -125,6 +130,31 @@
             <label><input type="radio" name="variant" value="mirror" />Mirrored</label>
           </div>
           <div id="angles" class="segmented" aria-label="Rotation"></div>
+        </fieldset>
+
+        <fieldset id="transform">
+          <legend>Transform</legend>
+          <div class="row" role="group" aria-labelledby="shift-label">
+            <span id="shift-label" class="row-label">Shift</span>
+            <button type="button" class="icon" data-shift="left" aria-label="Shift figures left" title="Shift all figures one square left"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M13 8H3.5M7.5 4 3.5 8l4 4"/></svg></button>
+            <button type="button" class="icon" data-shift="right" aria-label="Shift figures right" title="Shift all figures one square right"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></button>
+            <button type="button" class="icon" data-shift="up" aria-label="Shift figures up" title="Shift all figures one square up"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 13V3.5M4 7.5l4-4 4 4"/></svg></button>
+            <button type="button" class="icon" data-shift="down" aria-label="Shift figures down" title="Shift all figures one square down"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 3v9.5M4 8.5l4 4 4-4"/></svg></button>
+          </div>
+          <div class="row" role="group" aria-labelledby="turn-label">
+            <span id="turn-label" class="row-label">Turn</span>
+            <button type="button" class="icon" data-transform="ccw" aria-label="Rotate board counterclockwise" title="Rotate the board a quarter turn counterclockwise"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 13A5 5 0 1 0 3 8M5 6 3 8 1 6"/></svg></button>
+            <button type="button" class="icon" data-transform="cw" aria-label="Rotate board clockwise" title="Rotate the board a quarter turn clockwise"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 13A5 5 0 1 1 13 8M11 6l2 2 2-2"/></svg></button>
+            <button type="button" class="icon" data-transform="mirror-h" aria-label="Mirror board horizontally" title="Mirror the board left to right"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path class="axis" d="M8 1.5v13"/><path class="fill" d="M6 3.5v9L1.5 8z"/><path d="M10 3.5v9L14.5 8z"/></svg></button>
+            <button type="button" class="icon" data-transform="mirror-v" aria-label="Mirror board vertically" title="Mirror the board top to bottom"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><g transform="rotate(90 8 8)"><path class="axis" d="M8 1.5v13"/><path class="fill" d="M6 3.5v9L1.5 8z"/><path d="M10 3.5v9L14.5 8z"/></g></svg></button>
+          </div>
+          <div class="row" role="group" aria-labelledby="colors-label">
+            <span id="colors-label" class="row-label">Colors</span>
+            <button type="button" class="icon" data-colors="white" aria-label="All white" title="Make every figure white"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect class="white" x="2.5" y="2.5" width="11" height="11"/></svg></button>
+            <button type="button" class="icon" data-colors="black" aria-label="All black" title="Make every figure black"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect class="black" x="2.5" y="2.5" width="11" height="11"/></svg></button>
+            <button type="button" class="icon" data-colors="neutral" aria-label="All neutral" title="Make every figure neutral"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect class="white" x="2.5" y="2.5" width="11" height="11"/><path class="black" d="M2.5 2.5H8v11H2.5z"/></svg></button>
+            <button type="button" class="icon" data-colors="swap" aria-label="Swap colors" title="Swap white and black"><svg viewBox="0 0 30 16" width="30" height="16" aria-hidden="true"><rect class="white" x="1.75" y="4" width="8" height="8"/><path d="M12.25 5.5h5.5m-1.75-1.75 1.75 1.75-1.75 1.75M17.75 10.5h-5.5m1.75-1.75-1.75 1.75 1.75 1.75"/><rect class="black" x="20.25" y="4" width="8" height="8"/></svg></button>
+          </div>
         </fieldset>
 
         <fieldset>

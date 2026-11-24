@@ -256,6 +256,49 @@ test("holes, walls and board size", async ({ page }) => {
   await expect(fen(page)).toHaveValue("10/10/.9");
 });
 
+test("Transform shifts, turns, mirrors and recolors the board", async ({ page }) => {
+  await open(page, "#fen=K1*/q1n&mark=circle:a1");
+  const button = (name: string) => page.getByRole("button", { name, exact: true });
+  await button("Shift figures right").click();
+  await expect(fen(page)).toHaveValue("1K*/1q1"); // n falls off
+  await expect(page.getByTestId("annotations")).toContainText("circle b1");
+  await button("Shift figures left").click();
+  await expect(fen(page)).toHaveValue("K1*/q2");
+  await button("Rotate board clockwise").click();
+  await expect(fen(page)).toHaveValue("qK/2/1*");
+  await expect(page.getByTestId("annotations")).toContainText("circle a3");
+  await button("Rotate board counterclockwise").click();
+  await expect(fen(page)).toHaveValue("K1*/q2");
+  await button("Mirror board horizontally").click();
+  await expect(fen(page)).toHaveValue("*1K/2q");
+  await button("Mirror board vertically").click();
+  await expect(fen(page)).toHaveValue("2q/*1K");
+  await button("Swap colors").click();
+  await expect(fen(page)).toHaveValue("2Q/*1k");
+  await button("All black").click();
+  await expect(fen(page)).toHaveValue("2q/*1k");
+  await setFen(page, "{Q45}K1/3"); // the same size, so the circle stays on the board
+  await button("All neutral").click();
+  await expect(fen(page)).toHaveValue("{Q45}{=K}1/3");
+  await expect(page.getByTestId("status")).toHaveText("1 figure has no neutral version in the GC fonts");
+  await button("All white").click();
+  await expect(page.getByTestId("status")).toHaveText("Ready");
+
+  // Holes and walls turn and mirror with the board; the size follows a quarter turn.
+  await page.getByRole("button", { name: "Clear annotations" }).click();
+  await setFen(page, "..K/*1q/3/1.n");
+  await button("Rotate board clockwise").click();
+  await expect(fen(page)).toHaveValue("2*./.2./n1qK");
+  await expect(page.getByTestId("files")).toHaveValue("4");
+  await expect(page.getByTestId("ranks")).toHaveValue("3");
+  await button("Rotate board counterclockwise").click();
+  await expect(fen(page)).toHaveValue("..K/*1q/3/1.n");
+  await button("Mirror board horizontally").click();
+  await expect(fen(page)).toHaveValue("K../q1*/3/n.1");
+  await button("Mirror board vertically").click();
+  await expect(fen(page)).toHaveValue("n.1/3/q1*/K..");
+});
+
 test("annotations and diagram options", async ({ page }) => {
   await open(page);
   const annotations = page.getByTestId("annotations");

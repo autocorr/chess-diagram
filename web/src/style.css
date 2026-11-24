@@ -455,6 +455,58 @@ button {
   flex: none;
 }
 
+/* Transform: a name, then its buttons, lined up from row to row. */
+#transform .row {
+  gap: 0.3rem;
+  flex-wrap: nowrap;
+}
+
+#transform .row-label {
+  flex: none;
+  width: 3.2rem;
+}
+
+#transform button {
+  padding-inline: 0.3rem;
+}
+
+#transform button.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2rem;
+}
+
+/* One line weight for every icon. White and black mean the figure colors, so they stay
+   white and black in dark mode too; their outline follows the text color. */
+#transform svg {
+  height: 1.1rem;
+  width: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#transform svg .fill {
+  fill: currentColor;
+}
+
+#transform svg .axis {
+  stroke-linecap: butt;
+  stroke-dasharray: 2 1.75;
+}
+
+#transform svg .white {
+  fill: #fff;
+}
+
+#transform svg .black {
+  fill: #000;
+}
+
 #fen.invalid {
   border-color: var(--error);
 }

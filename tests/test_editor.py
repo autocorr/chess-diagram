@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from typing import Any
 
 from gcdiagram import editor
 from gcdiagram.options import RenderOptions
@@ -89,6 +90,92 @@ def test_recolor_cycles_through_the_colors_the_fonts_have() -> None:
     # Empty squares, holes and walls are left alone.
     assert editor.recolor("1.*", "a1")["fen"] == "1.*"
     assert editor.recolor("1.*", "b1")["fen"] == "1.*"
+
+
+def test_shift_moves_figures_and_annotations_but_not_holes_or_walls() -> None:
+    # 3x2:  K . *     row 0 (rank 2)
+    #       q . n     row 1 (rank 1)
+    fen = "K1*/q1n"
+    marks = ["circle:a1", "arrow:a1-c2:blue", "label:c1:tr:A"]
+    # n falls off the board; the arrow and the label would leave it too.
+    assert editor.shift(fen, "right", marks) == {"fen": "1K*/1q1", "annotations": ["circle:b1"]}
+    assert editor.shift(fen, "left")["fen"] == "2*/1n1"
+    # n would land on the wall.
+    assert editor.shift(fen, "up", marks) == {
+        "fen": "q1*/3",
+        "annotations": ["circle:a2", "label:c2:tr:A"],
+    }
+    assert editor.shift(fen, "down", ["circle:a2"]) == {
+        "fen": "2*/K2",
+        "annotations": ["circle:a1"],
+    }
+    assert editor.shift(".1/K1", "up")["fen"] == ".1/2"  # a hole swallows it too
+    assert editor.shift(fen, "sideways")["code"] == "error"
+
+
+def test_transform_rotates_and_mirrors_the_whole_board() -> None:
+    fen = "K1*/q1n"  # 3 files, 2 ranks
+    marks = ["arrow:a1-c2", "label:a2:tl:A:green"]
+    # Clockwise: the bottom rank becomes the left file.
+    assert editor.transform(fen, "cw", marks) == {
+        "fen": "qK/2/n*",
+        "annotations": ["arrow:a3-b1", "label:b3:tr:A:green"],
+    }
+    assert editor.transform(fen, "ccw", marks) == {
+        "fen": "*n/2/Kq",
+        "annotations": ["arrow:b1-a3", "label:a1:bl:A:green"],
+    }
+    assert editor.transform(fen, "mirror-h", marks) == {
+        "fen": "*1K/n1q",
+        "annotations": ["arrow:c1-a2", "label:c2:tr:A:green"],
+    }
+    assert editor.transform(fen, "mirror-v", marks) == {
+        "fen": "q1n/K1*",
+        "annotations": ["arrow:a2-c1", "label:a1:bl:A:green"],
+    }
+    # Four quarter turns, or two mirrors, give back the board; figures keep their angle.
+    rotated = "{Q90}1./2{@star}"
+    for op, times in (("cw", 4), ("ccw", 4), ("mirror-h", 2), ("mirror-v", 2)):
+        out: dict[str, Any] = {"fen": rotated, "annotations": marks}
+        for _ in range(times):
+            out = editor.transform(out["fen"], op, out["annotations"])
+        assert out == {"fen": rotated, "annotations": marks}
+    assert editor.transform(fen, "flip")["code"] == "error"
+
+
+def test_transform_moves_holes_and_walls_with_the_board() -> None:
+    # 3 files x 4 ranks:  . . K
+    #                     * - q
+    #                     - - -
+    #                     - . n
+    fen = "..K/*1q/3/1.n"
+    expected = {
+        "cw": "2*./.2./n1qK",
+        "ccw": "Kq1n/.2./.*2",
+        "mirror-h": "K../q1*/3/n.1",
+        "mirror-v": "1.n/3/*1q/..K",
+    }
+    for op, out in expected.items():
+        assert editor.transform(fen, op)["fen"] == out
+        assert "svg" in editor.render(out)  # the border still runs around the holes
+
+
+def test_set_colors() -> None:
+    fen = "K{q45}{~N}{=R}{@star}{@box}{=@equihopper}1"
+    assert editor.set_colors(fen, "black") == {
+        "fen": "k{q45}{~n}r{@star}{@box}{@equihopper}1",
+        "unchanged": 0,
+    }
+    # No neutral pieces at 45 degrees, no neutral chameleons and no neutral star.
+    assert editor.set_colors(fen, "neutral") == {
+        "fen": "{=K}{q45}{~N}{=R}{@star}{@box}{=@equihopper}1",
+        "unchanged": 3,
+    }
+    assert editor.set_colors(fen, "swap") == {
+        "fen": "k{Q45}{~n}{=R}{@Star}{@box}{=@equihopper}1",
+        "unchanged": 0,
+    }
+    assert editor.set_colors(fen, "purple")["code"] == "error"
 
 
 def test_edit_errors() -> None:

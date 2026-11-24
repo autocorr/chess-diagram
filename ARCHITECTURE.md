@@ -560,8 +560,15 @@ as the CLI writes them.
   removes an annotation given as fields (kind, squares, color, corner, symbol) and
   returns the list in canonical text forms. `rotate` steps to the
   next angle the fonts support for that piece, and `recolor` to the next color (white,
-  black, neutral) they support for that figure. `export` returns SVG, PDF bytes or a TeX
-  snippet.
+  black, neutral) they support for that figure. The Transform section's functions work
+  on the whole board: `shift` moves every figure one square (figures pushed off the
+  board, or onto a hole or wall, are removed; holes and walls stay put), `transform`
+  turns the board a quarter turn (`cw`, `ccw`) or mirrors it (`mirror-h`, `mirror-v`)
+  with its holes and walls, keeping each figure's own orientation, and `set_colors`
+  makes every figure white, black or neutral, or swaps white and black, counting the
+  figures the fonts have no such version of (they keep their color). `shift` and
+  `transform` move the annotations too, label corners included, dropping those that
+  leave the board. `export` returns SVG, PDF bytes or a TeX snippet.
   `info` and `figure_svg` feed the palette. Errors come back as `{error, code}`.
 - **UI** (`main.ts`, no framework): it only handles input and display.
   - The Figure box lists the piece and special icons first, then the color, variant
@@ -571,6 +578,8 @@ as the CLI writes them.
     doesn't exist there at all, the first that does is selected. Without this, choosing
     Mirrored at 0° would leave nothing selectable, since mirrored knights only exist at
     90°, 180° and 270°.
+  - Transform, between Figure and Tool: buttons that shift the figures, turn or mirror
+    the board, and set or swap every figure's color.
   - Tools: place (clicking the same figure again removes it), erase, hole, wall and
     annotate. Annotate draws an arrow on a drag, and on a click the circle, cross,
     square, triangle, dot or label chosen in the Annotation section, in its chosen color. Doing

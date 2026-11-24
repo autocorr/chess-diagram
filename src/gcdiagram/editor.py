@@ -7,7 +7,7 @@ from JavaScript; errors come back as {"error": message, "code": code}.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import fields
 from typing import Any, cast, get_args
 
@@ -246,6 +246,134 @@ def recolor(fen: str, square: str) -> dict[str, Any]:
     except (FenError, ValueError) as e:
         return _error(e)
     return {"fen": serialize(board)}
+
+
+# Maps a (row, col) on one board to a (row, col) on another.
+MoveTo = Callable[[int, int], tuple[int, int]]
+
+_SHIFTS: dict[str, tuple[int, int]] = {
+    "left": (0, -1),
+    "right": (0, 1),
+    "up": (-1, 0),
+    "down": (1, 0),
+}
+
+
+def shift(fen: str, direction: str, annotations: list[str] | None = None) -> dict[str, Any]:
+    """Move every figure one square left, right, up or down. Holes and walls stay where
+    they are; a figure that would land off the board, or on a hole or wall, is removed.
+    Annotations move too, and are dropped if they would leave the board."""
+    if direction not in _SHIFTS:
+        return {"error": f"unknown direction {direction!r}", "code": "error"}
+    dr, dc = _SHIFTS[direction]
+    try:
+        board = parse(fen)
+        cells: list[list[Cell]] = [
+            [EMPTY if isinstance(cell, Square) else cell for cell in row] for row in board.cells
+        ]
+        new = Board(cells)
+        for r, c, fig in board.figures():
+            if new.contains(r + dr, c + dc) and isinstance(new.cells[r + dr][c + dc], Square):
+                new.cells[r + dr][c + dc] = Square(fig)
+        kept = _move_annotations(annotations, board, new, lambda r, c: (r + dr, c + dc), {})
+    except (FenError, ValueError) as e:
+        return _error(e)
+    return {"fen": serialize(new), "annotations": kept}
+
+
+# How each transformation moves a label's corner.
+_CORNER_MAPS: dict[str, dict[str, str]] = {
+    "cw": {"tl": "tr", "tr": "br", "br": "bl", "bl": "tl"},
+    "ccw": {"tl": "bl", "bl": "br", "br": "tr", "tr": "tl"},
+    "mirror-h": {"tl": "tr", "tr": "tl", "bl": "br", "br": "bl"},
+    "mirror-v": {"tl": "bl", "bl": "tl", "tr": "br", "br": "tr"},
+}
+
+
+def transform(fen: str, op: str, annotations: list[str] | None = None) -> dict[str, Any]:
+    """Turn the whole board a quarter turn ("cw" or "ccw", which swaps its width and
+    height), or mirror it left to right ("mirror-h") or top to bottom ("mirror-v").
+    Holes, walls and annotations move with their squares. The figures keep their own
+    orientation: an upright queen stays upright."""
+    if op not in _CORNER_MAPS:
+        return {"error": f"unknown transformation {op!r}", "code": "error"}
+    try:
+        board = parse(fen)
+        h, w = board.height, board.width
+        where: dict[str, MoveTo] = {
+            "cw": lambda r, c: (c, h - 1 - r),
+            "ccw": lambda r, c: (w - 1 - c, r),
+            "mirror-h": lambda r, c: (r, w - 1 - c),
+            "mirror-v": lambda r, c: (h - 1 - r, c),
+        }
+        to = where[op]
+        new_h, new_w = (w, h) if op in ("cw", "ccw") else (h, w)
+        cells: list[list[Cell]] = [[EMPTY] * new_w for _ in range(new_h)]
+        for r, row in enumerate(board.cells):
+            for c, cell in enumerate(row):
+                nr, nc = to(r, c)
+                cells[nr][nc] = cell
+        new = Board(cells)
+        kept = _move_annotations(annotations, board, new, to, _CORNER_MAPS[op])
+    except (FenError, ValueError) as e:
+        return _error(e)
+    return {"fen": serialize(new), "annotations": kept}
+
+
+def _move_annotations(
+    annotations: list[str] | None,
+    old: Board,
+    new: Board,
+    to: MoveTo,
+    corners: dict[str, str],
+) -> list[str]:
+    """Annotations moved from the old board to the new one, square by square with
+    to(row, col), dropping those with a square that ends up off the new board."""
+    kept = []
+    for a in map(parse_annotation, annotations or []):
+        squares = []
+        for square in a.squares:
+            row, col = to(*parse_square(square, old.height))
+            if not new.contains(row, col):
+                break
+            squares.append(new.square_name(row, col))
+        else:
+            corner = cast(Corner, corners.get(a.corner, a.corner)) if a.corner else None
+            kept.append(str(Annotation(a.kind, tuple(squares), a.color, corner, a.symbol)))
+    return kept
+
+
+_SWAP: dict[str, str] = {"white": "black", "black": "white", "neutral": "neutral"}
+
+
+def set_colors(fen: str, color: str) -> dict[str, Any]:
+    """Make every figure white, black or neutral, or "swap" white and black. Figures the
+    fonts have no such version of, and colorless specials (box, cross), are left as they
+    are; "unchanged" counts the figures that could not take the color."""
+    if color not in (*_COLORS, "swap"):
+        return {"error": f"unknown color {color!r}", "code": "error"}
+    try:
+        board = parse(fen)
+        cat = load_catalog()
+        unchanged = 0
+        for r, c, fig in board.figures():
+            if fig.color == "none":
+                continue
+            target = cast(Color, _SWAP[fig.color] if color == "swap" else color)
+            if target == fig.color:
+                continue
+            candidate: Figure = (
+                Piece(fig.kind, target, fig.angle, fig.variant)
+                if isinstance(fig, Piece)
+                else Special(fig.name, target)
+            )
+            if cat.supports(candidate):
+                board.cells[r][c] = Square(candidate)
+            else:
+                unchanged += 1
+    except (FenError, ValueError) as e:
+        return _error(e)
+    return {"fen": serialize(board), "unchanged": unchanged}
 
 
 def toggle_annotation(

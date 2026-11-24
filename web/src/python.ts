@@ -110,6 +110,12 @@ export class Python {
   rotate = (fen: string, square: string, step: number) =>
     this.call<{ fen: string } | Failure>("rotate", fen, square, step);
   recolor = (fen: string, square: string) => this.call<{ fen: string } | Failure>("recolor", fen, square);
+  shift = (fen: string, direction: string, annotations: string[]) =>
+    this.call<{ fen: string; annotations: string[] } | Failure>("shift", fen, direction, annotations);
+  transform = (fen: string, op: string, annotations: string[]) =>
+    this.call<{ fen: string; annotations: string[] } | Failure>("transform", fen, op, annotations);
+  setColors = (fen: string, color: string) =>
+    this.call<{ fen: string; unchanged: number } | Failure>("set_colors", fen, color);
   resize = (fen: string, width: number, height: number, annotations: string[]) =>
     this.call<{ fen: string; annotations: string[] } | Failure>("resize", fen, width, height, annotations);
   toggleAnnotation = (
